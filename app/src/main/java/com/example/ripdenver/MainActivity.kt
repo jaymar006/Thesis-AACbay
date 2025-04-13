@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
                 val mainViewModel: MainViewModel = viewModel()
                 val cards by mainViewModel.cards.collectAsState()
                 val folders by mainViewModel.folders.collectAsState()
-                val selectedItems by mainViewModel.selectedCards.collectAsState()
+                val selectedCards by mainViewModel.selectedCards.collectAsState()
 
                 NavHost(
                     navController = navController,
@@ -37,9 +37,9 @@ class MainActivity : ComponentActivity() {
                         MainScreen(
                             cards = cards,
                             folders = folders,
-                            selectedItems = selectedItems,
+                            selectedCards = selectedCards,
                             onCardClick = { card ->
-                                mainViewModel.addToSelection(card)
+                                mainViewModel.addCardToSelection(card)
                                 // Trigger TTS here if needed
                             },
                             onFolderClick = { folder ->
@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
                             FolderScreen(
                                 folder = folder,
                                 cards = folderCards,
-                                selectedItems = selectedItems,
+                                selectedItems = selectedCards,
                                 onCardClick = { card ->
                                     mainViewModel.addToSelection(card)
                                 },

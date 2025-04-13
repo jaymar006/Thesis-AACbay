@@ -29,7 +29,7 @@ import com.example.ripdenver.ui.components.FolderItem
 fun MainScreen(
     cards: List<Card>,
     folders: List<Folder>,
-    selectedItems: List<Any>,  // From ViewModel
+    selectedCards: List<Card>,  // From ViewModel
     onCardClick: (Card) -> Unit,  // Now takes Card instead of String
     onFolderClick: (Folder) -> Unit,  // Now takes Folder instead of String ID
     onAddClick: () -> Unit,
@@ -49,7 +49,7 @@ fun MainScreen(
                 .fillMaxSize()
         ) {
             SelectionContainer(
-                selectedItems = selectedItems, // use directly from parameters
+                selectedItems = selectedCards, // use directly from parameters
                 onClearOne = onRemoveLastSelection,
                 onClearAll = onClearSelection
             )
@@ -88,7 +88,7 @@ fun MainScreen(
 
 @Composable
 public fun SelectionContainer(
-    selectedItems: List<Any>,
+    selectedItems: List<Card>,
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
     modifier: Modifier = Modifier
@@ -106,11 +106,8 @@ public fun SelectionContainer(
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            selectedItems.forEach { item ->
-                when (item) {
-                    is Card -> SelectedCardItem(card = item)
-                    is Folder -> SelectedFolderItem(folder = item)
-                }
+            selectedItems.forEach { card ->
+                SelectedCardItem(card = card)
             }
         }
 

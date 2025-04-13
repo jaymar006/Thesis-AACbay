@@ -33,7 +33,14 @@ class MainViewModel : ViewModel() {
     // Selection Management
     fun addToSelection(card: Card) {
         _selectedCards.update { current ->
-            if (!current.contains(card)) current + card else current
+            current + card // So that we can select multiple of the same card
+            // we an use (if (card in current) current - card else current + card) for single selection
+        }
+    }
+
+    fun addCardToSelection(card: Card) {
+        _selectedCards.update { current ->
+            current + card
         }
     }
 

@@ -2,6 +2,7 @@ package com.example.ripdenver.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -54,22 +55,32 @@ fun CardItem(
                 .background(Color(android.graphics.Color.parseColor(card.color))),
             contentAlignment = Alignment.Center
         ) {
-            if (imageRef != null) {
-                FirebaseImage(
-                    reference = imageRef,
-                    contentDescription = card.label,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (imageRef != null) {
+                    FirebaseImage(
+                        reference = imageRef,
+                        contentDescription = card.label,
+                        modifier = Modifier.size(80.dp)
+                    )
+                } else {
+                    // Show loading indicator only in the image area
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = Color.White
+                    )
+                }
+                // Always show label below
                 Text(
                     text = card.label,
                     style = MaterialTheme.typography.titleLarge,
-                    color = Color.White
+                    color = Color.White,
+                    modifier = Modifier.padding(8.dp)
                 )
+                }
             }
         }
     }
-}
+
 
 @Composable
 fun FirebaseImage(
