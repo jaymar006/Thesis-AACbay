@@ -19,6 +19,7 @@ import com.example.ripdenver.models.Card
 import com.example.ripdenver.ui.components.CardItem
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Backspace
+import androidx.navigation.NavController
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.FolderItem
 
@@ -27,67 +28,56 @@ import com.example.ripdenver.ui.components.FolderItem
 @Composable
 fun MainScreen(
     cards: List<Card>,
-    folders: List<Folder>,  // Add folders parameter
-    onCardClick: (String) -> Unit,
-    onFolderClick: (String) -> Unit,  // Add folder click handler
+    folders: List<Folder>,
+    selectedItems: List<Any>,  // From ViewModel
+    onCardClick: (Card) -> Unit,  // Now takes Card instead of String
+    onFolderClick: (Folder) -> Unit,  // Now takes Folder instead of String ID
     onAddClick: () -> Unit,
-    onMicClick: () -> Unit
+    onMicClick: () -> Unit,
+    onClearSelection: () -> Unit,  // New callback
+    onRemoveLastSelection: () -> Unit,  // New callback
+    navController: NavController
 ) {
-    var selectedItems by remember { mutableStateOf<List<Any>>(emptyList()) }  // Can hold both Cards and Folders
+   // var selectedItems by remember { mutableStateOf(selectedItems) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("ACCBay") },
-                actions = {
-                    IconButton(onClick = { /* Settings */ }) {
-                        Icon(Icons.Default.Settings, "Settings")
-                    }
-                }
-            )
-        }
+        // ... existing scaffold code
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            // Selection Container
             SelectionContainer(
-                selectedItems = selectedItems,
-                onClearOne = { selectedItems = selectedItems.dropLast(1) },
-                onClearAll = { selectedItems = emptyList() }
+                selectedItems = selectedItems, // use directly from parameters
+                onClearOne = onRemoveLastSelection,
+                onClearAll = onClearSelection
             )
 
-            // Main Grid
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 150.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                // Folders Section
                 items(folders) { folder ->
                     FolderItem(
                         folder = folder,
                         onClick = {
-                            selectedItems = selectedItems + folder
-                            onFolderClick(folder.id)
+                            onFolderClick(folder)
+                            navController.navigate("folder/${folder.id}")
                         }
                     )
                 }
 
-                // Cards Section
                 items(cards) { card ->
                     CardItem(
                         card = card,
                         onClick = {
-                            selectedItems = selectedItems + card
-                            onCardClick(card.vocalization)
+                            onCardClick(card)
                         }
                     )
                 }
             }
 
-            // Control Buttons
             ControlButtons(
                 onAddClick = onAddClick,
                 onMicClick = onMicClick
@@ -97,7 +87,7 @@ fun MainScreen(
 }
 
 @Composable
-private fun SelectionContainer(
+public fun SelectionContainer(
     selectedItems: List<Any>,
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
