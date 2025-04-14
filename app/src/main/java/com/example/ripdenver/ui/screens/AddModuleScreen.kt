@@ -1,5 +1,8 @@
 package com.example.ripdenver.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,17 +14,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.ripdenver.models.Card
-import com.example.ripdenver.models.Folder
 import com.example.ripdenver.viewmodels.AddModuleViewModel
-// Add these imports at the top
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
 import androidx.lifecycle.viewmodel.compose.viewModel
-// OR
-import androidx.lifecycle.compose.collectAsStateWithLifecycle  // For StateFlow
+import com.example.ripdenver.utils.CloudinaryManager
+import com.google.firebase.database.core.Context
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,12 +33,27 @@ fun AddModuleScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    val screenTitle = if (uiState.isCardSelected) "Add new Card" else "Add new Folder"
+    // State for image handling
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            imageUri = it
+            // Don't update the path yet - we'll do it after Cloudinary upload
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(screenTitle) },
+                title = { Text(if (uiState.isCardSelected) "Add new Card" else "Add new Folder") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -56,19 +72,53 @@ fun AddModuleScreen(
                     }
                     Button(
                         onClick = {
-                            if (uiState.isCardSelected) {
-                                viewModel.saveCard()
-                            } else {
-                                viewModel.saveFolder()
+                            scope.launch {
+                                isLoading = true
+                                errorMessage = null
+
+                                try {
+                                    if (uiState.isCardSelected) {
+                                        // Handle card save with image upload
+                                        val cloudinaryUrl = imageUri?.let { uri ->
+                                            try {
+                                                viewModel.uploadImageAndGetUrl(context, uri)
+                                            } catch (e: Exception) {
+                                                errorMessage = "Image upload failed: ${e.message}"
+                                                null
+                                            }
+                                        }
+
+                                        // Update the card with the Cloudinary URL
+                                        cloudinaryUrl?.let { url ->
+                                            viewModel.updateCardImage(url)
+                                        }
+                                        viewModel.saveCard(onSaveComplete)
+                                    } else {
+                                        viewModel.saveFolder()
+                                        onSaveComplete()
+                                    }
+                                    onSaveComplete()
+                                } catch (e: Exception) {
+                                    errorMessage = "Save failed: ${e.message}"
+                                } finally {
+                                    isLoading = false
+                                }
                             }
-                            onSaveComplete()
                         },
-                        enabled = when {
+                        enabled = !isLoading && when {
                             uiState.isCardSelected -> uiState.cardLabel.isNotBlank()
                             else -> uiState.folderLabel.isNotBlank()
                         }
                     ) {
-                        Text("Save")
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Save")
+                        }
                     }
                 }
             }
@@ -81,6 +131,15 @@ fun AddModuleScreen(
                 .verticalScroll(scrollState)
                 .padding(16.dp)
         ) {
+            // Show error message if exists
+            errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             // Radio buttons for Card/Folder selection
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -132,13 +191,33 @@ fun AddModuleScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Image Picker
-                ImageSelectionSection(
-                    selectedImage = uiState.cardImagePath,
-                    onImageSelected = { viewModel.updateCardImage(it) }
-                )
+                // Image Picker Section
+                Column {
+                    Text("Select Image", style = MaterialTheme.typography.labelLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Image, contentDescription = "Select Image")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Choose Image")
+                    }
+
+                    // Show selected image preview
+                    imageUri?.let { uri ->
+                        AsyncImage(
+                            model = uri,
+                            contentDescription = "Selected image",
+                            modifier = Modifier
+                                .size(100.dp)
+                                .padding(top = 8.dp)
+                        )
+                    }
+                }
             } else {
-                // Folder Fields
+                // Folder Fields (unchanged)
                 OutlinedTextField(
                     value = uiState.folderLabel,
                     onValueChange = { viewModel.updateFolderLabel(it) },
@@ -148,7 +227,6 @@ fun AddModuleScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Color Picker
                 ColorSelectionDropdown(
                     selectedColor = uiState.folderColor,
                     onColorSelected = { viewModel.updateFolderColor(it) }
@@ -156,16 +234,16 @@ fun AddModuleScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Image Picker
-                ImageSelectionSection(
-                    selectedImage = uiState.folderImagePath,
-                    onImageSelected = { viewModel.updateFolderImage(it) }
-                )
+                // Folder image picker (if needed)
+                // Similar implementation as card image picker
             }
+
         }
+
     }
 }
 
+// Keep your existing ColorSelectionDropdown composable
 @Composable
 private fun ColorSelectionDropdown(
     selectedColor: String,
@@ -227,6 +305,7 @@ private fun ColorSelectionDropdown(
 @Composable
 private fun ImageSelectionSection(
     selectedImage: String,
+
     onImageSelected: (String) -> Unit
 ) {
     // Simplified implementation - you'll need to implement actual image picking
@@ -239,6 +318,7 @@ private fun ImageSelectionSection(
             // Implement image picker logic
             // For now just setting a placeholder
             onImageSelected("images/placeholder.png")
+            
         }) {
             Icon(Icons.Default.Image, "Select Image")
             Spacer(modifier = Modifier.width(8.dp))

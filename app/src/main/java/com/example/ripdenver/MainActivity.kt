@@ -14,12 +14,14 @@ import com.example.ripdenver.ui.screens.AddModuleScreen
 import com.example.ripdenver.ui.screens.FolderScreen
 import com.example.ripdenver.ui.screens.MainScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
+import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CloudinaryManager.initialize(this)
         enableEdgeToEdge()
         setContent {
             RIPDenverTheme {

@@ -5,7 +5,7 @@ data class Card(
     val label: String = "",
     val vocalization: String = "",
     val color: String = "#FF0000",
-    val imagePath: String = "", // Stores Firebase Storage path
+    val cloudinaryUrl: String = "", // Renamed from imagePath
     val folderId: String = "",
     var usageCount: Int = 0,
     val lastUsed: Long = 0

@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,19 +33,12 @@ import com.example.ripdenver.utils.ImageUploader
 import com.google.firebase.storage.StorageReference
 import kotlinx.coroutines.tasks.await
 
+// CardItem.kt
 @Composable
 fun CardItem(
     card: Card,
     onClick: () -> Unit = {}
 ) {
-    val imageRef = remember(card.imagePath) {
-        if (card.imagePath.isNotEmpty()) {
-            ImageUploader.getImageReference(card.imagePath)
-        } else {
-            null
-        }
-    }
-
     Card(
         modifier = Modifier
             .aspectRatio(1f)
@@ -56,31 +52,33 @@ fun CardItem(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (imageRef != null) {
-                    FirebaseImage(
-                        reference = imageRef,
+                if (card.cloudinaryUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = card.cloudinaryUrl,
                         contentDescription = card.label,
-                        modifier = Modifier.size(80.dp)
+                        modifier = Modifier.size(80.dp),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.ic_placeholder),
+                        error = painterResource(R.drawable.ic_placeholder)
                     )
                 } else {
-                    // Show loading indicator only in the image area
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = Color.White
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "No image",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
                     )
                 }
-                // Always show label below
                 Text(
                     text = card.label,
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
                     modifier = Modifier.padding(8.dp)
                 )
-                }
             }
         }
     }
-
+}
 
 @Composable
 fun FirebaseImage(
