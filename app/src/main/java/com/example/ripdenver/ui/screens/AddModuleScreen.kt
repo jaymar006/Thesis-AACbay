@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,12 +15,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ripdenver.R
 import com.example.ripdenver.utils.CloudinaryManager
 import com.google.firebase.database.core.Context
 import kotlinx.coroutines.launch
@@ -141,6 +145,119 @@ fun AddModuleScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
+            // PREVIEW SECTION ==========================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (uiState.isCardSelected) {
+                    // Card Preview
+                    Card(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .aspectRatio(1f),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(android.graphics.Color.parseColor(uiState.cardColor))
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                if (imageUri != null) {
+                                    AsyncImage(
+                                        model = imageUri,
+                                        contentDescription = "Preview image",
+                                        modifier = Modifier.size(80.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = "No image",
+                                        modifier = Modifier.size(48.dp),
+                                        tint = Color.White
+                                    )
+                                }
+                                Text(
+                                    text = uiState.cardLabel.ifEmpty { "Card" },
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Folder Preview
+                    Box(
+                        modifier = Modifier
+                            .size(150.dp)
+                            .padding(bottom = 16.dp), // Extra space for folder tab
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Folder tab
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .fillMaxWidth(0.4f)
+                                .height(20.dp)
+                                .background(
+                                    color = Color(android.graphics.Color.parseColor(uiState.folderColor))
+                                        .copy(alpha = 0.8f),
+                                    shape = MaterialTheme.shapes.extraSmall.copy(
+                                        bottomStart = CornerSize(0.dp),
+                                        bottomEnd = CornerSize(0.dp)
+                                    )
+                                )
+                        )
+
+                        // Folder body
+                        Card(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = 10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(android.graphics.Color.parseColor(uiState.folderColor))
+                            ),
+                            shape = MaterialTheme.shapes.medium.copy(
+                                topStart = CornerSize(4.dp),
+                                topEnd = CornerSize(10.dp)
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.padding(top = 16.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_placeholder),
+                                        contentDescription = "Folder",
+                                        tint = Color.White.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                    Text(
+                                        text = uiState.folderLabel.ifEmpty { "Folder" },
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(top = 8.dp),
+                                        maxLines = 2
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // END PREVIEW SECTION ======================================
 
             // Radio buttons for Card/Folder selection
             Row(
