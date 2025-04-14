@@ -1,5 +1,6 @@
 package com.example.ripdenver.ui.screens
 
+import android.graphics.Paint.Align
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -19,68 +20,81 @@ import com.example.ripdenver.models.Card
 import com.example.ripdenver.ui.components.CardItem
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.ui.Alignment.Companion.BottomEnd
+import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.FolderItem
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     cards: List<Card>,
     folders: List<Folder>,
-    selectedCards: List<Card>,  // From ViewModel
-    onCardClick: (Card) -> Unit,  // Now takes Card instead of String
-    onFolderClick: (Folder) -> Unit,  // Now takes Folder instead of String ID
+    selectedCards: List<Card>,
+    onCardClick: (Card) -> Unit,
+    onFolderClick: (Folder) -> Unit,
     onAddClick: () -> Unit,
     onMicClick: () -> Unit,
-    onClearSelection: () -> Unit,  // New callback
-    onRemoveLastSelection: () -> Unit,  // New callback
+    onClearSelection: () -> Unit,
+    onRemoveLastSelection: () -> Unit,
     navController: NavController
 ) {
-   // var selectedItems by remember { mutableStateOf(selectedItems) }
-
     Scaffold(
-        // ... existing scaffold code
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-        ) {
-            SelectionContainer(
-                selectedItems = selectedCards, // use directly from parameters
-                onClearOne = onRemoveLastSelection,
-                onClearAll = onClearSelection
-            )
-
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 150.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(folders) { folder ->
-                    FolderItem(
-                        folder = folder,
-                        onClick = {
-                            onFolderClick(folder)
-                            navController.navigate("folder/${folder.id}")
-                        }
-                    )
+        topBar = {
+            TopAppBar(
+                title = { Text("ACCBay") },
+                actions = {
+                    IconButton(onClick = { /* Settings */ }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
                 }
+            )
+        }
+    ) { padding ->
+        Box(modifier = Modifier
+            .padding(padding)
+            .fillMaxSize()
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                SelectionContainer(
+                    selectedItems = selectedCards,
+                    onClearOne = onRemoveLastSelection,
+                    onClearAll = onClearSelection
+                )
 
-                items(cards) { card ->
-                    CardItem(
-                        card = card,
-                        onClick = {
-                            onCardClick(card)
-                        }
-                    )
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 150.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(folders) { folder ->
+                        FolderItem(
+                            folder = folder,
+                            onClick = {
+                                onFolderClick(folder)
+                                navController.navigate("folder/${folder.id}")
+                            }
+                        )
+                    }
+
+                    items(cards) { card ->
+                        CardItem(
+                            card = card,
+                            onClick = {
+                                onCardClick(card)
+                            }
+                        )
+                    }
                 }
             }
 
+            // Floating buttons OVERLAY
             ControlButtons(
                 onAddClick = onAddClick,
-                onMicClick = onMicClick
+                onMicClick = onMicClick,
+                modifier = Modifier
+                    .fillMaxSize() // only needed to align
+                    .padding(bottom = 16.dp)
             )
         }
     }
@@ -152,7 +166,7 @@ private fun SelectedCardItem(card: Card) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = card.label.take(3), // Show first 3 letters
+            text = card.label, // Show first 3 letters
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -165,33 +179,33 @@ private fun ControlButtons(
     onMicClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+    Box(
+        modifier = modifier.fillMaxSize(), // changed from fillMaxWidth
+        contentAlignment = Alignment.BottomCenter
     ) {
-        Button(onClick = onAddClick) {
+        // Add button - Bottom Start
+        FloatingActionButton(
+            onClick = onAddClick,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+            elevation = FloatingActionButtonDefaults.elevation()
+        ) {
             Icon(Icons.Default.Add, contentDescription = "Add")
-            Spacer(Modifier.width(8.dp))
-            Text("Add")
         }
 
-        IconButton(
+        // Mic button - Bottom End
+        FloatingActionButton(
             onClick = onMicClick,
             modifier = Modifier
-                .size(64.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = CircleShape
-                )
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            elevation = FloatingActionButtonDefaults.elevation()
         ) {
-            Icon(
-                Icons.Default.Mic,
-                "Voice input",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(32.dp)
-            )
+            Icon(Icons.Default.Mic, contentDescription = "Voice input")
         }
     }
 }
