@@ -99,6 +99,7 @@ class AddModuleViewModel : ViewModel() {
         try {
             val card = uiState.value.run {
                 Card(
+                    id = UUID.randomUUID().toString(), // Generate ID if not already set
                     label = cardLabel,
                     vocalization = cardVocalization,
                     color = cardColor,

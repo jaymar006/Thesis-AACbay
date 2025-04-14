@@ -78,7 +78,7 @@ fun AddModuleScreen(
 
                                 try {
                                     if (uiState.isCardSelected) {
-                                        // Handle card save with image upload
+                                        // If user picked an image, upload it first
                                         val cloudinaryUrl = imageUri?.let { uri ->
                                             try {
                                                 viewModel.uploadImageAndGetUrl(context, uri)
@@ -88,16 +88,18 @@ fun AddModuleScreen(
                                             }
                                         }
 
-                                        // Update the card with the Cloudinary URL
-                                        cloudinaryUrl?.let { url ->
-                                            viewModel.updateCardImage(url)
+                                        if (cloudinaryUrl != null || imageUri == null) {
+                                            cloudinaryUrl?.let { viewModel.updateCardImage(it) }
+                                            viewModel.saveCard {
+                                                onSaveComplete()
+                                            }
+                                        } else {
+                                            errorMessage = "Image upload failed, card not saved."
                                         }
-                                        viewModel.saveCard(onSaveComplete)
                                     } else {
                                         viewModel.saveFolder()
                                         onSaveComplete()
                                     }
-                                    onSaveComplete()
                                 } catch (e: Exception) {
                                     errorMessage = "Save failed: ${e.message}"
                                 } finally {
@@ -308,7 +310,7 @@ private fun ImageSelectionSection(
 
     onImageSelected: (String) -> Unit
 ) {
-    // Simplified implementation - you'll need to implement actual image picking
+
     Column {
         Text("Select Image", style = MaterialTheme.typography.labelLarge)
         Spacer(modifier = Modifier.height(8.dp))
