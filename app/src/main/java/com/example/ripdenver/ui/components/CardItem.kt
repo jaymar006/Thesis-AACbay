@@ -57,7 +57,7 @@ fun CardItem(
                         model = card.cloudinaryUrl,
                         contentDescription = card.label,
                         modifier = Modifier.size(80.dp),
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,  // Changed from Crop to Fit to see entire image
                         placeholder = painterResource(R.drawable.ic_placeholder),
                         error = painterResource(R.drawable.ic_placeholder)
                     )
@@ -77,38 +77,5 @@ fun CardItem(
                 )
             }
         }
-    }
-}
-
-@Composable
-fun FirebaseImage(
-    reference: StorageReference,
-    contentDescription: String,
-    modifier: Modifier = Modifier
-) {
-    var imageUrl by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(reference) {
-        try {
-            imageUrl = reference.downloadUrl.await().toString()
-        } catch (e: Exception) {
-            // Handle error if needed
-            imageUrl = null
-        }
-    }
-
-    if (imageUrl != null) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = contentDescription,
-            modifier = modifier,
-            contentScale = ContentScale.Crop,
-            placeholder = painterResource(R.drawable.ic_placeholder),
-            error = painterResource(R.drawable.ic_placeholder)
-        )
-    } else {
-        CircularProgressIndicator(
-            modifier = Modifier.size(48.dp)
-        )
     }
 }
