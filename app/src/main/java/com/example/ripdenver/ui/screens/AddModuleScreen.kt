@@ -28,6 +28,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ripdenver.R
 import com.example.ripdenver.models.ArasaacPictogram
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -356,13 +358,18 @@ fun AddModuleScreen(
                             if (viewModel.isLoadingPictograms) {
                                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                             } else {
-                                LazyColumn(modifier = Modifier.height(300.dp)) {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(5),
+                                    modifier = Modifier
+                                        .height(350.dp)
+                                        .fillMaxWidth()
+                                ) {
                                     items(viewModel.pictograms.size) { index ->
                                         val pictogram = viewModel.pictograms[index]
                                         PictogramItem(
                                             pictogram = pictogram,
                                             onClick = {
-                                                onSymbolSelected(pictogram.getImageUrl(500)) // Using 500px resolution
+                                                onSymbolSelected(pictogram.getImageUrl(500))
                                             }
                                         )
                                     }
@@ -371,9 +378,7 @@ fun AddModuleScreen(
                         }
                     },
                     confirmButton = {
-                        TextButton(
-                            onClick = { showSymbolSearchDialog = false }
-                        ) {
+                        TextButton(onClick = { showSymbolSearchDialog = false }) {
                             Text("Cancel")
                         }
                     }
@@ -612,34 +617,15 @@ fun PictogramItem(
     Card(
         onClick = onClick,
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .size(64.dp)
+            .padding(4.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Construct the URL directly
-            val imageUrl = "https://static.arasaac.org/pictograms/${pictogram._id}/${pictogram._id}_100.png"
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = pictogram.keywords.firstOrNull()?.keyword ?: "Symbol",
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(
-                    text = pictogram.keywords.firstOrNull()?.keyword ?: "No keyword",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                if (pictogram.keywords.size > 1) {
-                    Text(
-                        text = "+${pictogram.keywords.size - 1} more meanings",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            }
-        }
+        val imageUrl = "https://static.arasaac.org/pictograms/${pictogram._id}/${pictogram._id}_300.png"
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = pictogram.keywords.firstOrNull()?.keyword ?: "Symbol",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
