@@ -247,6 +247,17 @@ fun AddModuleScreen(
                                     modifier = Modifier.padding(top = 8.dp)
                                 )
                             }
+                            // Add clickable icon in the bottom-right corner
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Image",
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(8.dp)
+                                    .size(24.dp)
+                                    .clickable { onPreviewClick() },
+                                tint = Color.White.copy(alpha = 0.8f)
+                            )
                         }
                     }
                 } else {
@@ -450,31 +461,7 @@ fun AddModuleScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Image Picker Section
-                Column {
-                    Text("Select Image", style = MaterialTheme.typography.labelLarge)
-                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Button(
-                        onClick = { imagePickerLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Image, contentDescription = "Select Image")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Choose Image")
-                    }
-
-                    // Show selected image preview
-                    imageUri?.let { uri ->
-                        AsyncImage(
-                            model = uri,
-                            contentDescription = "Selected image",
-                            modifier = Modifier
-                                .size(100.dp)
-                                .padding(top = 8.dp)
-                        )
-                    }
-                }
             } else {
                 // Folder Fields (unchanged)
                 OutlinedTextField(
