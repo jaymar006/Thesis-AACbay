@@ -7,12 +7,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,17 +26,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import com.example.ripdenver.viewmodels.AddModuleViewModel
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.ripdenver.R
 import com.example.ripdenver.models.ArasaacPictogram
+import com.example.ripdenver.viewmodels.AddModuleViewModel
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,9 +55,6 @@ fun AddModuleScreen(
 
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var showSymbolSearchDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<AddModuleViewModel.ArasaacSymbol>>(emptyList()) }
-    var isLoadingSymbols by remember { mutableStateOf(false) }
 
     // handle preview click
     val onPreviewClick = {
@@ -86,20 +84,6 @@ fun AddModuleScreen(
         }
     }
 
-    // for search symbols
-//    val searchSymbols: () -> Unit = {
-//        scope.launch {
-//            isLoadingSymbols = true
-//            try {
-//                searchResults = viewModel.searchSymbols(searchQuery, "en")
-//            } catch (e: Exception) {
-//                errorMessage = "Failed to load symbols: ${e.message}"
-//            } finally {
-//                isLoadingSymbols = false
-//            }
-//        }
-//    }
-
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -115,7 +99,7 @@ fun AddModuleScreen(
                 title = { Text(if (uiState.isCardSelected) "Add new Card" else "Add new Folder") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -587,67 +571,6 @@ private fun ColorSelectionDropdown(
     }
 }
 
-@Composable
-private fun ImageSelectionSection(
-    selectedImage: String,
-
-    onImageSelected: (String) -> Unit
-) {
-
-    Column {
-        Text("Select Image", style = MaterialTheme.typography.labelLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Placeholder for image selection
-        Button(onClick = {
-            // Implement image picker logic
-            // For now just setting a placeholder
-            onImageSelected("images/placeholder.png")
-
-        }) {
-            Icon(Icons.Default.Image, "Select Image")
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Choose Image")
-        }
-
-        if (selectedImage.isNotEmpty()) {
-            // Show selected image preview
-            AsyncImage(
-                model = selectedImage,
-                contentDescription = "Selected image",
-                modifier = Modifier
-                    .size(100.dp)
-                    .padding(top = 8.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun SymbolItem(
-    symbol: AddModuleViewModel.ArasaacSymbol,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = symbol.imageUrl,
-                contentDescription = symbol.keyword,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = symbol.keyword)
-        }
-    }
-}
 
 @Composable
 fun PictogramItem(
@@ -687,3 +610,4 @@ fun CustomDialog(
         }
     }
 }
+

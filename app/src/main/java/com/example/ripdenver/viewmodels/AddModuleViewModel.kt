@@ -105,20 +105,6 @@ class AddModuleViewModel : ViewModel() {
         }
     }
 
-//    suspend fun searchSymbols(query: String, language: String): List<ArasaacSymbol> {
-//        return try {
-//            arasaacApi.searchSymbols(language, query).map { symbol ->
-//                ArasaacSymbol(
-//                    id = symbol.id,
-//                    keyword = symbol.keyword,
-//                    imageUrl = "https://static.arasaac.org/pictograms/${symbol.id}/${symbol.id}_300.png"
-//                )
-//            }
-//        } catch (e: Exception) {
-//            emptyList()
-//        }
-//    }
-
     fun selectCardType(isCard: Boolean) {
         _uiState.value = _uiState.value.copy(isCardSelected = isCard)
     }

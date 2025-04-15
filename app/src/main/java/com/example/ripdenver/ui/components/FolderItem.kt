@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.ripdenver.R
 import com.example.ripdenver.models.Folder
-import com.example.ripdenver.utils.ImageUploader
 
 
 @Composable

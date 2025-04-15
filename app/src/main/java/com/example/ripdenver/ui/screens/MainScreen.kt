@@ -1,29 +1,26 @@
 package com.example.ripdenver.ui.screens
 
-import android.graphics.Paint.Align
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.* // This imports all default icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.example.ripdenver.models.Card
-import com.example.ripdenver.ui.components.CardItem
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Backspace
-import androidx.compose.ui.Alignment.Companion.BottomEnd
-import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
+import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
+import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,7 +98,7 @@ fun MainScreen(
 }
 
 @Composable
-public fun SelectionContainer(
+fun SelectionContainer(
     selectedItems: List<Card>,
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
@@ -127,30 +124,11 @@ public fun SelectionContainer(
 
         // Control buttons
         IconButton(onClick = onClearOne) {
-            Icon(Icons.Default.Backspace, "Remove last")
+            Icon(Icons.AutoMirrored.Filled.Backspace, "Remove last")
         }
         IconButton(onClick = onClearAll) {
             Icon(Icons.Default.Delete, "Clear all")
         }
-    }
-}
-
-@Composable
-private fun SelectedFolderItem(folder: Folder) {
-    Box(
-        modifier = Modifier
-            .size(60.dp)
-            .background(
-                color = Color(android.graphics.Color.parseColor(folder.color)),
-                shape = MaterialTheme.shapes.small
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = folder.name.take(3),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
     }
 }
 
