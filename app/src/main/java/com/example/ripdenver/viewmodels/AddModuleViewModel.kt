@@ -9,13 +9,16 @@ import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.state.AddModuleState
 import com.example.ripdenver.utils.CloudinaryManager
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -199,6 +202,30 @@ class AddModuleViewModel : ViewModel() {
             onComplete()
         } catch (e: Exception) {
             // Handle error
+        }
+    }
+
+
+    suspend fun saveImageToFirebase(cloudinaryUrl: String) {
+        val database = FirebaseDatabase.getInstance()
+        val ref = database.getReference("cards").push() // Adjust the path as needed
+        ref.setValue(mapOf("imageUrl" to cloudinaryUrl))
+    }
+
+    private suspend fun downloadImage(context: android.content.Context, imageUrl: String): File {
+        return withContext(Dispatchers.IO) {
+            val url = URL(imageUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connect()
+
+            // Use context.cacheDir to resolve the cache directory
+            val file = File(context.cacheDir, "temp_image.jpg")
+            file.outputStream().use { output ->
+                connection.inputStream.use { input ->
+                    input.copyTo(output)
+                }
+            }
+            file
         }
     }
 }

@@ -71,11 +71,18 @@ fun AddModuleScreen(
         scope.launch {
             try {
                 isLoading = true
+                // Update the preview with the selected symbol
+                imageUri = Uri.parse(imageUrl)
+                viewModel.updateCardImage(imageUrl) // Update the card preview with the symbol
+
+                // Download the image and upload it to Cloudinary
                 val cloudinaryUrl = viewModel.uploadArasaacImage(context, imageUrl)
+
+                // Store the Cloudinary URL in Firebase Realtime Database
+                viewModel.saveImageToFirebase(cloudinaryUrl)
+
+                // Update the card image with the Cloudinary URL
                 viewModel.updateCardImage(cloudinaryUrl)
-                // Also update the local imageUri for preview display
-                imageUri = Uri.parse(cloudinaryUrl)
-                showSymbolSearchDialog = false
             } catch (e: Exception) {
                 errorMessage = "Failed to upload symbol: ${e.message}"
             } finally {

@@ -1,4 +1,3 @@
-
 package com.example.ripdenver.utils
 
 import android.content.Context
@@ -6,14 +5,15 @@ import android.net.Uri
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.ripdenver.BuildConfig.API_KEY
+import com.example.ripdenver.BuildConfig.API_SECRET
+import com.example.ripdenver.BuildConfig.CLOUD_NAME
+import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 object CloudinaryManager {
-    private const val CLOUD_NAME = "dj6hbreus"
-    private const val API_KEY = "284513165948815"
-    private const val API_SECRET = "e-Vi8BdfXkp03eMKfJ-3CesHOfk"
 
     fun initialize(context: Context) {
         val config = mapOf(
@@ -22,6 +22,15 @@ object CloudinaryManager {
             "api_secret" to API_SECRET
         )
         MediaManager.init(context, config)
+    }
+
+    suspend fun uploadImageToCloudinary(context: Context, file: File): String? {
+        return try {
+            CloudinaryManager.uploadImage(context, Uri.fromFile(file))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     suspend fun uploadImage(context: Context, uri: Uri): String {
@@ -36,9 +45,11 @@ object CloudinaryManager {
                             continuation.resume(it)
                         } ?: continuation.resumeWithException(Exception("No URL returned"))
                     }
+
                     override fun onError(requestId: String, error: ErrorInfo) {
                         continuation.resumeWithException(Exception(error.description))
                     }
+
                     override fun onReschedule(requestId: String, error: ErrorInfo) {}
                 })
                 .dispatch(context)

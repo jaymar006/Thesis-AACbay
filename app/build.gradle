@@ -5,6 +5,13 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
+
 android {
     namespace 'com.example.ripdenver'
     compileSdk 35
@@ -15,8 +22,10 @@ android {
         targetSdk 35
         versionCode 1
         versionName "1.0"
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField "String", "CLOUD_NAME", "\"${localProperties['CLOUD_NAME']}\""
+        buildConfigField "String", "API_KEY", "\"${localProperties['API_KEY']}\""
+        buildConfigField "String", "API_SECRET", "\"${localProperties['API_SECRET']}\""
     }
 
     buildTypes {
@@ -35,6 +44,7 @@ android {
     buildFeatures {
         compose true
         viewBinding = true
+        buildConfig true
     }
 }
 
