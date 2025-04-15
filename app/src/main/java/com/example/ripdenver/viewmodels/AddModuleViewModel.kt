@@ -1,8 +1,10 @@
 package com.example.ripdenver.viewmodels
 
 import android.net.Uri
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.state.AddModuleState
@@ -14,11 +16,108 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Path
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.UUID
 
 class AddModuleViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AddModuleState())
     val uiState: StateFlow<AddModuleState> = _uiState.asStateFlow()
+
+    private val _pictograms = mutableStateOf<List<ArasaacPictogram>>(emptyList())
+    // Expose as public immutable state
+    val pictograms: List<ArasaacPictogram> get() = _pictograms.value
+
+    private val _isLoadingPictograms = mutableStateOf(false)
+    val isLoadingPictograms: Boolean get() = _isLoadingPictograms.value
+
+    // Add to AddModuleViewModel.kt
+    data class ArasaacSymbol(
+        val id: Int,
+        val keyword: String,
+        val imageUrl: String
+    )
+
+    // Add API service interface
+    interface ArasaacApiService {
+        @GET("v1/pictograms/all/{language}")
+        suspend fun getAllPictograms(
+            @Path("language") language: String = "en"
+        ): List<ArasaacPictogram>
+    }
+
+    // Add to AddModuleViewModel
+    private val arasaacApi: ArasaacApiService by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://api.arasaac.org/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ArasaacApiService::class.java)
+    }
+
+
+    fun setPictograms(newPictograms: List<ArasaacPictogram>) {
+        _pictograms.value = newPictograms
+    }
+
+    fun setLoadingPictograms(isLoading: Boolean) {
+        _isLoadingPictograms.value = isLoading
+    }
+
+    // In your loadAllPictograms() function:
+    fun loadAllPictograms() {
+        viewModelScope.launch {
+            _isLoadingPictograms.value = true  // Use the mutable backing property
+            try {
+                _pictograms.value = arasaacApi.getAllPictograms()  // Use the mutable backing property
+            } catch (e: Exception) {
+                // Handle error
+            } finally {
+                _isLoadingPictograms.value = false  // Use the mutable backing property
+            }
+        }
+    }
+
+    suspend fun uploadArasaacImage(context: android.content.Context, imageUrl: String): String {
+        return try {
+            // Download the image first
+            val url = URL(imageUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.doInput = true
+            connection.connect()
+            val input = connection.inputStream
+
+            // Create a temporary file
+            val file = File.createTempFile("arasaac", ".png", context.cacheDir)
+            file.outputStream().use { output ->
+                input.copyTo(output)
+            }
+
+            // Upload to Cloudinary
+            CloudinaryManager.uploadImage(context, Uri.fromFile(file))
+        } catch (e: Exception) {
+            throw Exception("Failed to upload ARASAAC image: ${e.message}")
+        }
+    }
+
+//    suspend fun searchSymbols(query: String, language: String): List<ArasaacSymbol> {
+//        return try {
+//            arasaacApi.searchSymbols(language, query).map { symbol ->
+//                ArasaacSymbol(
+//                    id = symbol.id,
+//                    keyword = symbol.keyword,
+//                    imageUrl = "https://static.arasaac.org/pictograms/${symbol.id}/${symbol.id}_300.png"
+//                )
+//            }
+//        } catch (e: Exception) {
+//            emptyList()
+//        }
+//    }
 
     fun selectCardType(isCard: Boolean) {
         _uiState.value = _uiState.value.copy(isCardSelected = isCard)

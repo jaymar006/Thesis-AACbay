@@ -4,7 +4,9 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.verticalScroll
@@ -24,8 +26,7 @@ import com.example.ripdenver.viewmodels.AddModuleViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ripdenver.R
-import com.example.ripdenver.utils.CloudinaryManager
-import com.google.firebase.database.core.Context
+import com.example.ripdenver.models.ArasaacPictogram
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +45,55 @@ fun AddModuleScreen(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var showSymbolSearchDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<AddModuleViewModel.ArasaacSymbol>>(emptyList()) }
+    var isLoadingSymbols by remember { mutableStateOf(false) }
+
+    // handle preview click
+    val onPreviewClick = {
+        if (uiState.isCardSelected) {
+            showImageSourceDialog = true
+
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.loadAllPictograms()
+    }
+
+    val onSymbolSelected: (String) -> Unit = { imageUrl ->
+        scope.launch {
+            try {
+                isLoading = true
+                val cloudinaryUrl = viewModel.uploadArasaacImage(context, imageUrl)
+                viewModel.updateCardImage(cloudinaryUrl)
+                // Also update the local imageUri for preview display
+                imageUri = Uri.parse(cloudinaryUrl)
+                showSymbolSearchDialog = false
+            } catch (e: Exception) {
+                errorMessage = "Failed to upload symbol: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // for search symbols
+//    val searchSymbols: () -> Unit = {
+//        scope.launch {
+//            isLoadingSymbols = true
+//            try {
+//                searchResults = viewModel.searchSymbols(searchQuery, "en")
+//            } catch (e: Exception) {
+//                errorMessage = "Failed to load symbols: ${e.message}"
+//            } finally {
+//                isLoadingSymbols = false
+//            }
+//        }
+//    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -151,7 +201,8 @@ fun AddModuleScreen(
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .clickable { onPreviewClick() },
                 contentAlignment = Alignment.Center
             ) {
                 if (uiState.isCardSelected) {
@@ -258,6 +309,76 @@ fun AddModuleScreen(
                 }
             }
             // END PREVIEW SECTION ======================================
+            if (showImageSourceDialog) {
+                AlertDialog(
+                    onDismissRequest = { showImageSourceDialog = false },
+                    title = { Text("Select Image Source") },
+                    text = {
+                        Column {
+                            Button(
+                                onClick = {
+                                    showImageSourceDialog = false
+                                    showSymbolSearchDialog = true
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Choose from ARASAAC Symbols")
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    showImageSourceDialog = false
+                                    imagePickerLauncher.launch("image/*")
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Choose from Gallery")
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { showImageSourceDialog = false }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            // Symbol Search Dialog
+            if (showSymbolSearchDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSymbolSearchDialog = false },
+                    title = { Text("Select Symbol") },
+                    text = {
+                        Column {
+                            if (viewModel.isLoadingPictograms) {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                            } else {
+                                LazyColumn(modifier = Modifier.height(300.dp)) {
+                                    items(viewModel.pictograms.size) { index ->
+                                        val pictogram = viewModel.pictograms[index]
+                                        PictogramItem(
+                                            pictogram = pictogram,
+                                            onClick = {
+                                                onSymbolSelected(pictogram.getImageUrl(500)) // Using 500px resolution
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = { showSymbolSearchDialog = false }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
 
             // Radio buttons for Card/Folder selection
             Row(
@@ -437,7 +558,7 @@ private fun ImageSelectionSection(
             // Implement image picker logic
             // For now just setting a placeholder
             onImageSelected("images/placeholder.png")
-            
+
         }) {
             Icon(Icons.Default.Image, "Select Image")
             Spacer(modifier = Modifier.width(8.dp))
@@ -453,6 +574,72 @@ private fun ImageSelectionSection(
                     .size(100.dp)
                     .padding(top = 8.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun SymbolItem(
+    symbol: AddModuleViewModel.ArasaacSymbol,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = symbol.imageUrl,
+                contentDescription = symbol.keyword,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = symbol.keyword)
+        }
+    }
+}
+
+@Composable
+fun PictogramItem(
+    pictogram: ArasaacPictogram,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Construct the URL directly
+            val imageUrl = "https://static.arasaac.org/pictograms/${pictogram._id}/${pictogram._id}_100.png"
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = pictogram.keywords.firstOrNull()?.keyword ?: "Symbol",
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = pictogram.keywords.firstOrNull()?.keyword ?: "No keyword",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (pictogram.keywords.size > 1) {
+                    Text(
+                        text = "+${pictogram.keywords.size - 1} more meanings",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
         }
     }
 }
