@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +31,8 @@ import com.example.ripdenver.models.ArasaacPictogram
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -316,7 +319,11 @@ fun AddModuleScreen(
                     onDismissRequest = { showImageSourceDialog = false },
                     title = { Text("Select Image Source") },
                     text = {
-                        Column {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .width(600.dp)
+                        ) {
                             Button(
                                 onClick = {
                                     showImageSourceDialog = false
@@ -350,39 +357,46 @@ fun AddModuleScreen(
 
             // Symbol Search Dialog
             if (showSymbolSearchDialog) {
-                AlertDialog(
-                    onDismissRequest = { showSymbolSearchDialog = false },
-                    title = { Text("Select Symbol") },
-                    text = {
-                        Column {
-                            if (viewModel.isLoadingPictograms) {
-                                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                            } else {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(5),
-                                    modifier = Modifier
-                                        .height(350.dp)
-                                        .fillMaxWidth()
-                                ) {
-                                    items(viewModel.pictograms.size) { index ->
-                                        val pictogram = viewModel.pictograms[index]
-                                        PictogramItem(
-                                            pictogram = pictogram,
-                                            onClick = {
-                                                onSymbolSelected(pictogram.getImageUrl(500))
-                                            }
-                                        )
-                                    }
+                CustomDialog(onDismissRequest = { showSymbolSearchDialog = false }) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Select Symbol",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        if (viewModel.isLoadingPictograms) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3), // 3x3 grid
+                                modifier = Modifier
+                                    .height(600.dp) // Adjust height as needed
+                                    .fillMaxWidth()
+                            ) {
+                                items(viewModel.pictograms.size) { index ->
+                                    val pictogram = viewModel.pictograms[index]
+                                    PictogramItem(
+                                        pictogram = pictogram,
+                                        onClick = {
+                                            onSymbolSelected(pictogram.getImageUrl(500))
+                                        }
+                                    )
                                 }
                             }
                         }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showSymbolSearchDialog = false }) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { showSymbolSearchDialog = false },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
                             Text("Cancel")
                         }
                     }
-                )
+                }
             }
 
             // Radio buttons for Card/Folder selection
@@ -429,7 +443,7 @@ fun AddModuleScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Color Picker
-                ColorSelectionDropdown(
+                ColorSelectionRow (
                     selectedColor = uiState.cardColor,
                     onColorSelected = { viewModel.updateCardColor(it) }
                 )
@@ -488,6 +502,45 @@ fun AddModuleScreen(
     }
 }
 
+@Composable
+private fun ColorSelectionRow(
+    selectedColor: String,
+    onColorSelected: (String) -> Unit
+) {
+    val colors = listOf(
+        "#FF0000" to "Red",
+        "#00FF00" to "Green",
+        "#0000FF" to "Blue",
+        "#FFFF00" to "Yellow",
+        "#FF00FF" to "Magenta",
+        "#00FFFF" to "Cyan",
+        "#FFA500" to "Orange",
+        "#800080" to "Purple",
+        "#808080" to "Gray"
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        colors.forEach { (hex, _) ->
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .background(
+                        color = Color(android.graphics.Color.parseColor(hex)),
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = if (selectedColor == hex) 2.dp else 1.dp,
+                        color = if (selectedColor == hex) MaterialTheme.colorScheme.primary else Color.Gray,
+                        shape = CircleShape
+                    )
+                    .clickable { onColorSelected(hex) }
+            )
+        }
+    }
+}
 // Keep your existing ColorSelectionDropdown composable
 @Composable
 private fun ColorSelectionDropdown(
@@ -627,5 +680,23 @@ fun PictogramItem(
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize()
         )
+    }
+}
+
+@Composable
+fun CustomDialog(
+    onDismissRequest: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            tonalElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth(0.9f) // Adjust width as needed (90% of screen width)
+                .wrapContentHeight()
+        ) {
+            content()
+        }
     }
 }
