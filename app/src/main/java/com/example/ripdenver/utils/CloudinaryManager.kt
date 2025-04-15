@@ -48,6 +48,7 @@ object CloudinaryManager {
 
                     override fun onError(requestId: String, error: ErrorInfo) {
                         continuation.resumeWithException(Exception(error.description))
+                        continuation.resumeWithException(Exception("Cloudinary upload failed: ${error.description}"))
                     }
 
                     override fun onReschedule(requestId: String, error: ErrorInfo) {}

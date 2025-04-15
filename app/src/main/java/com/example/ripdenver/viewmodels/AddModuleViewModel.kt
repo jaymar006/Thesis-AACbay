@@ -1,5 +1,6 @@
 package com.example.ripdenver.viewmodels
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -86,27 +87,7 @@ class AddModuleViewModel : ViewModel() {
         }
     }
 
-    suspend fun uploadArasaacImage(context: android.content.Context, imageUrl: String): String {
-        return try {
-            // Download the image first
-            val url = URL(imageUrl)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.doInput = true
-            connection.connect()
-            val input = connection.inputStream
 
-            // Create a temporary file
-            val file = File.createTempFile("arasaac", ".png", context.cacheDir)
-            file.outputStream().use { output ->
-                input.copyTo(output)
-            }
-
-            // Upload to Cloudinary
-            CloudinaryManager.uploadImage(context, Uri.fromFile(file))
-        } catch (e: Exception) {
-            throw Exception("Failed to upload ARASAAC image: ${e.message}")
-        }
-    }
 
     fun selectCardType(isCard: Boolean) {
         _uiState.value = _uiState.value.copy(isCardSelected = isCard)
@@ -140,33 +121,7 @@ class AddModuleViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(folderImagePath = path)
     }
 
-    suspend fun saveCard(imageUri: Uri?): Boolean {
-        return try {
-            val card = uiState.value.run {
-                Card(
-                    id = UUID.randomUUID().toString(), // Generate ID if not already set
-                    label = cardLabel,
-                    vocalization = cardVocalization,
-                    color = cardColor,
-                    cloudinaryUrl = if (imageUri != null) {
-                        // This will be handled by the caller who has Context
-                        "" // Temporary empty string
-                    } else {
-                        ""
-                    }
-                )
-            }
 
-            Firebase.database.reference.child("cards").child(card.id)
-                .setValue(card)
-                .await() // Wait for Firebase operation to complete
-
-            true // Return success
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false // Return failure
-        }
-    }
 
     fun saveFolder() = viewModelScope.launch {
         // Implement actual save logic
@@ -187,32 +142,36 @@ class AddModuleViewModel : ViewModel() {
         try {
             val card = uiState.value.run {
                 Card(
-                    id = UUID.randomUUID().toString(), // Generate ID if not already set
+                    id = UUID.randomUUID().toString(), // Generate a unique ID
                     label = cardLabel,
                     vocalization = cardVocalization,
                     color = cardColor,
-                    cloudinaryUrl = cardImagePath // Use the already updated path
+                    cloudinaryUrl = cardImagePath, // Use the updated image path
+                    folderId = "", // Set folderId if applicable
+                    usageCount = 0, // Default usage count
+                    lastUsed = System.currentTimeMillis() // Set the current timestamp
                 )
             }
 
+            // Save the entire Card object to Firebase
             Firebase.database.reference.child("cards").child(card.id)
                 .setValue(card)
                 .await()
 
             onComplete()
         } catch (e: Exception) {
-            // Handle error
+            e.printStackTrace()
         }
     }
 
 
-    suspend fun saveImageToFirebase(cloudinaryUrl: String) {
+    suspend fun saveImageToFirebase(card: Card) {
         val database = FirebaseDatabase.getInstance()
-        val ref = database.getReference("cards").push() // Adjust the path as needed
-        ref.setValue(mapOf("imageUrl" to cloudinaryUrl))
+        val ref = database.getReference("cards").child(card.id) // Use the card's ID as the key
+        ref.setValue(card) // Save the entire Card object
     }
 
-    private suspend fun downloadImage(context: android.content.Context, imageUrl: String): File {
+    private suspend fun downloadImage(context: Context, imageUrl: String): File {
         return withContext(Dispatchers.IO) {
             val url = URL(imageUrl)
             val connection = url.openConnection() as HttpURLConnection
@@ -226,6 +185,43 @@ class AddModuleViewModel : ViewModel() {
                 }
             }
             file
+        }
+    }
+
+    suspend fun uploadArasaacImage(context: Context, imageUrl: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Download the image
+                val file = downloadImage(context, imageUrl)
+
+                // Upload the file to Cloudinary
+                val cloudinaryUrl = CloudinaryManager.uploadImage(context, Uri.fromFile(file))
+                cloudinaryUrl ?: throw Exception("Cloudinary upload failed: returned null or empty URL")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw Exception("Failed to upload ARASAAC image: ${e.message}")
+            }
+        }
+    }
+
+    // Function to handle symbol selection
+    fun handleSymbolSelection(
+        context: Context,
+        imageUrl: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                // Upload the image to Cloudinary and update UI state
+                val cloudinaryUrl = uploadArasaacImage(context, imageUrl)
+                updateCardImage(cloudinaryUrl)
+
+                // Only notify success with the cloudinary URL
+                onSuccess(cloudinaryUrl)
+            } catch (e: Exception) {
+                onError("Failed to upload symbol: ${e.message}")
+            }
         }
     }
 }
