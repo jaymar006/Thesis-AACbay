@@ -23,25 +23,20 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -61,13 +56,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.example.ripdenver.R
 import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import kotlinx.coroutines.launch
@@ -139,64 +132,15 @@ fun AddModuleScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (uiState.isCardSelected) "Add new Card" else "Add new Folder") },
+                title = { Text(if (uiState.isCardSelected) "Magdagdag ng Kard" else "Magdagdag ng Folder") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
-        },
-        bottomBar = {
-            BottomAppBar {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Button(onClick = onBack) {
-                        Text("Cancel")
-                    }
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                if (uiState.isCardSelected) {
-                                    // Create and save card only when Save is clicked
-                                    val card = com.example.ripdenver.models.Card(
-                                        id = java.util.UUID.randomUUID().toString(),
-                                        label = uiState.cardLabel,
-                                        vocalization = uiState.cardVocalization,
-                                        color = uiState.cardColor,
-                                        cloudinaryUrl = uiState.cardImagePath,
-                                        folderId = "",
-                                        usageCount = 0,
-                                        lastUsed = System.currentTimeMillis()
-                                    )
-                                    viewModel.saveImageToFirebase(card)
-                                    onSaveComplete()
-                                } else {
-                                    viewModel.saveFolder()
-                                    onSaveComplete()
-                                }
-                            }
-                        },
-                        enabled = !isLoading && when {
-                            uiState.isCardSelected -> uiState.cardLabel.isNotBlank()
-                            else -> uiState.folderLabel.isNotBlank()
-                        }
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Save")
-                        }
-                    }
-                }
-            }
         }
+
     ) { padding ->
         Column(
             modifier = Modifier
@@ -205,36 +149,34 @@ fun AddModuleScreen(
                 .verticalScroll(scrollState)
                 .padding(16.dp)
         ) {
-            // Show error message if exists
-            errorMessage?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-            // PREVIEW SECTION ==========================================
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                    .padding(16.dp)
-                    .clickable { onPreviewClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                if (uiState.isCardSelected) {
-                    // Card Preview
+            // CARD PREVIEW ==============================
+            if (uiState.isCardSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.0f))
+                        .padding(16.dp)
+                        .clickable { onPreviewClick() },
+                    contentAlignment = Alignment.Center
+                ) {
                     Card(
                         modifier = Modifier
-                            .size(120.dp)
-                            .aspectRatio(1f),
+                            .size(130.dp)
+                            .aspectRatio(1f)
+                            .border(
+                                width = 1.dp,
+                                color = Color(android.graphics.Color.parseColor(uiState.cardColor)),
+                                shape = MaterialTheme.shapes.medium
+                            ),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(android.graphics.Color.parseColor(uiState.cardColor))
+                            containerColor = Color(android.graphics.Color.parseColor(uiState.cardColor)).copy(alpha = 0.5f)
                         )
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(android.graphics.Color.parseColor(uiState.cardColor)).copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -254,18 +196,17 @@ fun AddModuleScreen(
                                     )
                                 }
                                 Text(
-                                    text = uiState.cardLabel.ifEmpty { "Card" },
+                                    text = uiState.cardLabel.ifEmpty { "Pangalan" },
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = Color.White,
+                                    color = Color.Black,
                                     modifier = Modifier.padding(top = 8.dp)
                                 )
                             }
-                            // Add clickable icon in the bottom-right corner
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Edit Image",
                                 modifier = Modifier
-                                    .align(Alignment.BottomEnd)
+                                    .align(Alignment.TopEnd)
                                     .padding(8.dp)
                                     .size(24.dp)
                                     .clickable { onPreviewClick() },
@@ -273,75 +214,12 @@ fun AddModuleScreen(
                             )
                         }
                     }
-                } else {
-                    // Folder Preview
-                    Box(
-                        modifier = Modifier
-                            .size(150.dp)
-                            .padding(bottom = 16.dp), // Extra space for folder tab
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Folder tab
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .fillMaxWidth(0.4f)
-                                .height(20.dp)
-                                .background(
-                                    color = Color(android.graphics.Color.parseColor(uiState.folderColor))
-                                        .copy(alpha = 0.8f),
-                                    shape = MaterialTheme.shapes.extraSmall.copy(
-                                        bottomStart = CornerSize(0.dp),
-                                        bottomEnd = CornerSize(0.dp)
-                                    )
-                                )
-                        )
-
-                        // Folder body
-                        Card(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = 10.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color(android.graphics.Color.parseColor(uiState.folderColor))
-                            ),
-                            shape = MaterialTheme.shapes.medium.copy(
-                                topStart = CornerSize(4.dp),
-                                topEnd = CornerSize(10.dp)
-                            )
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.padding(top = 16.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_placeholder),
-                                        contentDescription = "Folder",
-                                        tint = Color.White.copy(alpha = 0.8f),
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                    Text(
-                                        text = uiState.folderLabel.ifEmpty { "Folder" },
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = Color.White,
-                                        modifier = Modifier.padding(top = 8.dp),
-                                        maxLines = 2
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
-            // END PREVIEW SECTION ======================================
             if (showImageSourceDialog) {
                 AlertDialog(
                     onDismissRequest = { showImageSourceDialog = false },
-                    title = { Text("Select Image Source") },
+                    title = { Text("") },
                     text = {
                         Column(
                             modifier = Modifier
@@ -355,7 +233,7 @@ fun AddModuleScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Choose from ARASAAC Symbols")
+                                Text("Pumili ng Simbolo")
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
@@ -365,7 +243,7 @@ fun AddModuleScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Choose from Gallery")
+                                Text("Pumili mula sa Gallery")
                             }
                         }
                     },
@@ -433,7 +311,7 @@ fun AddModuleScreen(
                         selected = uiState.isCardSelected,
                         onClick = { viewModel.selectCardType(true) }
                     )
-                    Text("Card", modifier = Modifier.padding(start = 8.dp))
+                    Text("Kard", modifier = Modifier.padding(start = 8.dp))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
@@ -451,7 +329,7 @@ fun AddModuleScreen(
                 OutlinedTextField(
                     value = uiState.cardLabel,
                     onValueChange = { viewModel.updateCardLabel(it) },
-                    label = { Text("Card Label") },
+                    label = { Text("Pangalan") },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -460,18 +338,22 @@ fun AddModuleScreen(
                 OutlinedTextField(
                     value = uiState.cardVocalization,
                     onValueChange = { viewModel.updateCardVocalization(it) },
-                    label = { Text("Vocalization Text") },
+                    label = { Text("Pagbigkas") },
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Color Picker
-                ColorSelectionRow (
+                Text(
+                    text = "Mga Kulay",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                ColorSelectionRow(
                     selectedColor = uiState.cardColor,
                     onColorSelected = { viewModel.updateCardColor(it) }
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
 
 
@@ -480,23 +362,69 @@ fun AddModuleScreen(
                 OutlinedTextField(
                     value = uiState.folderLabel,
                     onValueChange = { viewModel.updateFolderLabel(it) },
-                    label = { Text("Folder Name") },
+                    label = { Text("Pangalan ng Folder") },
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                ColorSelectionDropdown(
+                Text(
+                    text = "Mga Kulay",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                ColorSelectionRow(
                     selectedColor = uiState.folderColor,
                     onColorSelected = { viewModel.updateFolderColor(it) }
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+
                 // Folder image picker (if needed)
                 // Similar implementation as card image picker
             }
-
+            Button(
+                onClick = {
+                    scope.launch {
+                        if (uiState.isCardSelected) {
+                            // Create and save card only when Save is clicked
+                            val card = com.example.ripdenver.models.Card(
+                                id = java.util.UUID.randomUUID().toString(),
+                                label = uiState.cardLabel,
+                                vocalization = uiState.cardVocalization,
+                                color = uiState.cardColor,
+                                cloudinaryUrl = uiState.cardImagePath,
+                                folderId = "",
+                                usageCount = 0,
+                                lastUsed = System.currentTimeMillis()
+                            )
+                            viewModel.saveImageToFirebase(card)
+                            onSaveComplete()
+                        } else {
+                            viewModel.saveFolder()
+                            onSaveComplete()
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .padding(2.dp)
+                    .align(Alignment.CenterHorizontally),
+                enabled = !isLoading && when {
+                    uiState.isCardSelected -> uiState.cardLabel.isNotBlank()
+                    else -> uiState.folderLabel.isNotBlank()
+                }
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Save")
+                }
+            }
         }
 
     }
@@ -538,64 +466,6 @@ private fun ColorSelectionRow(
                     )
                     .clickable { onColorSelected(hex) }
             )
-        }
-    }
-}
-// Keep your existing ColorSelectionDropdown composable
-@Composable
-private fun ColorSelectionDropdown(
-    selectedColor: String,
-    onColorSelected: (String) -> Unit
-) {
-    val colors = listOf(
-        "#FF0000" to "Red",
-        "#00FF00" to "Green",
-        "#0000FF" to "Blue",
-        "#FFFF00" to "Yellow",
-        "#FF00FF" to "Magenta"
-    )
-
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .background(Color(android.graphics.Color.parseColor(selectedColor)))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Select Color")
-            }
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            colors.forEach { (hex, name) ->
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .background(Color(android.graphics.Color.parseColor(hex)))
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(name)
-                        }
-                    },
-                    onClick = {
-                        onColorSelected(hex)
-                        expanded = false
-                    }
-                )
-            }
         }
     }
 }
