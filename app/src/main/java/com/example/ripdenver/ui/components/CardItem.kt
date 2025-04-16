@@ -5,7 +5,8 @@ import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,13 +25,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
@@ -57,15 +57,23 @@ fun CardItem(
             ),
         onClick = onClick
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(cardColor.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            val imageSize = maxWidth * 0.5f // half the width
+            val fontSize = maxWidth.value * 0.12f // scale font size
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 if (card.cloudinaryUrl.isNotEmpty()) {
-                    println("Loading image from URL: ${card.cloudinaryUrl}")
                     Glide.with(context)
                         .asBitmap()
                         .load(card.cloudinaryUrl)
@@ -88,30 +96,32 @@ fun CardItem(
                         Image(
                             bitmap = it.asImageBitmap(),
                             contentDescription = card.label,
-                            modifier = Modifier.size(80.dp),
+                            modifier = Modifier.size(imageSize),
                             contentScale = ContentScale.Fit
                         )
                     } ?: Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = "Loading",
                         tint = Color.White,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(imageSize * 0.6f)
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = "No image",
                         tint = Color.White,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(imageSize * 0.6f)
                     )
                 }
+
                 Text(
-                    text = card.label.split(" ").joinToString(" "){ word ->
+                    text = card.label.split(" ").joinToString(" ") { word ->
                         if (word == "I") word else word.lowercase()
                     },
                     modifier = Modifier.padding(8.dp),
                     color = Color.Black,
                     style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = fontSize.sp
                     )
                 )
             }

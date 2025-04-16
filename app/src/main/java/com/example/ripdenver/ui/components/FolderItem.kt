@@ -3,6 +3,7 @@ package com.example.ripdenver.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,13 +15,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ripdenver.models.Folder
-import com.example.ripdenver.ui.screens.MainScreen
 
 @Composable
 fun FolderItem(
@@ -70,20 +70,25 @@ fun FolderItem(
                 topEnd = CornerSize(10.dp),
             )
         ) {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(folderColor.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
+                val calculatedFontSize = maxWidth.value * 0.14f
+                val fontSize = maxOf(calculatedFontSize, 10f)
+
                 Text(
-                    text = folder.name.split(" ").joinToString(" "){ word ->
-                        word.lowercase()
-                    },
+                    text = folder.name.split(" ").joinToString(" ") { it.lowercase() },
                     color = Color.Black,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(16.dp),
-                    maxLines = 2
+                    modifier = Modifier.padding(8.dp),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = fontSize.sp
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

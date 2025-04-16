@@ -55,8 +55,8 @@ fun MainScreen(
     onClearSelection: () -> Unit,
     onRemoveLastSelection: () -> Unit,
     navController: NavController,
-    gridColumns: Int = 2,
-    isGridColumn: Boolean = false
+    gridColumns: Int = 4,
+    isGridColumn: Boolean = true
 ) {
 
     Scaffold(
