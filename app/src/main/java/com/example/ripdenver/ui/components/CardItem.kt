@@ -1,5 +1,8 @@
 package com.example.ripdenver.ui.components
 
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,22 +17,31 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.example.ripdenver.R
 import com.example.ripdenver.models.Card
 
-// CardItem.kt
 @Composable
 fun CardItem(
     card: Card,
     onClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+
     Card(
         modifier = Modifier
             .aspectRatio(1f)
@@ -44,13 +56,38 @@ fun CardItem(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (card.cloudinaryUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = card.cloudinaryUrl,
-                        contentDescription = card.label,
-                        modifier = Modifier.size(80.dp),
-                        contentScale = ContentScale.Fit,  // Changed from Crop to Fit to see entire image
-                        placeholder = painterResource(R.drawable.ic_placeholder),
-                        error = painterResource(R.drawable.ic_placeholder)
+                    println("Loading image from URL: ${card.cloudinaryUrl}")
+                    // Load image using Glide
+                    Glide.with(context)
+                        .asBitmap()
+                        .load(card.cloudinaryUrl)
+                        .placeholder(R.drawable.ic_placeholder)  // Add a placeholder drawable
+                        .error(R.drawable.ic_placeholder)  // Add an error drawable
+                        .into(object : CustomTarget<Bitmap>() {
+                            override fun onResourceReady(
+                                resource: Bitmap,
+                                transition: Transition<in Bitmap>?
+                            ) {
+                                bitmap = resource
+                            }
+
+                            override fun onLoadCleared(placeholder: Drawable?) {
+                                bitmap = null
+                            }
+                        })
+
+                    bitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = card.label,
+                            modifier = Modifier.size(80.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    } ?: Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Loading",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
                     )
                 } else {
                     Icon(
