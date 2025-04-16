@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,7 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -41,28 +44,33 @@ fun CardItem(
 ) {
     val context = LocalContext.current
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+    val cardColor = Color(android.graphics.Color.parseColor(card.color))
 
     Card(
         modifier = Modifier
             .aspectRatio(1f)
-            .padding(4.dp),
+            .padding(4.dp)
+            .border(
+                width = 1.dp,
+                color = cardColor,
+                shape = MaterialTheme.shapes.medium
+            ),
         onClick = onClick
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(android.graphics.Color.parseColor(card.color))),
+                .background(cardColor.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (card.cloudinaryUrl.isNotEmpty()) {
                     println("Loading image from URL: ${card.cloudinaryUrl}")
-                    // Load image using Glide
                     Glide.with(context)
                         .asBitmap()
                         .load(card.cloudinaryUrl)
-                        .placeholder(R.drawable.ic_placeholder)  // Add a placeholder drawable
-                        .error(R.drawable.ic_placeholder)  // Add an error drawable
+                        .placeholder(R.drawable.ic_placeholder)
+                        .error(R.drawable.ic_placeholder)
                         .into(object : CustomTarget<Bitmap>() {
                             override fun onResourceReady(
                                 resource: Bitmap,
@@ -98,10 +106,13 @@ fun CardItem(
                     )
                 }
                 Text(
-                    text = card.label,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    modifier = Modifier.padding(8.dp)
+                    text = card.label.split(" ").joinToString(" "){ word ->
+                        if (word == "I") word else word.lowercase()
+                    },
+                    modifier = Modifier.padding(8.dp),
+                    color = Color.Black,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                    )
                 )
             }
         }
