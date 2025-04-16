@@ -41,7 +41,8 @@ import com.example.ripdenver.models.Card
 @Composable
 fun CardItem(
     card: Card,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -70,7 +71,7 @@ fun CardItem(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(8.dp),
+                    .padding(2.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -119,7 +120,7 @@ fun CardItem(
                     text = card.label.split(" ").joinToString(" ") { word ->
                         if (word == "I") word else word.lowercase()
                     },
-                    modifier = Modifier.padding(8.dp),
+                    modifier = Modifier.padding(2.dp),
                     color = Color.Black,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = fontSize.sp

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,7 +32,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -62,12 +62,15 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("AACBay") },
-                actions = {
-                    IconButton(onClick = { /* Settings */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                title = { Text("") },
+                navigationIcon = {
+                    Row {
+                        IconButton(onClick = { /* Settings */ }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
                     }
-                }
+                },
+                modifier = Modifier.height(58.dp)
             )
         }
     ) { padding ->
@@ -152,26 +155,19 @@ fun SelectionContainer(
         IconButton(onClick = onClearAll) {
             Icon(Icons.Default.Delete, "Clear all")
         }
+        IconButton(onClick = { /* Edit action */ }) {
+            Icon(Icons.Default.Edit, contentDescription = "Edit")
+        }
     }
 }
 
 @Composable
 private fun SelectedCardItem(card: Card) {
-    Box(
-        modifier = Modifier
-            .size(60.dp)
-            .background(
-                color = Color(android.graphics.Color.parseColor(card.color)),
-                shape = MaterialTheme.shapes.small
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = card.label, // Show first 3 letters
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
+    CardItem(
+        card = card,
+        onClick = {}, // No action needed for selected items
+        modifier = Modifier.size(60.dp)// Smaller size for the selected card,
+    )
 }
 
 @Composable
