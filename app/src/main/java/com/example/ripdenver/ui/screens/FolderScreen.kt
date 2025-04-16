@@ -18,6 +18,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.CardItem
@@ -31,14 +32,17 @@ fun FolderScreen(
     onCardClick: (Card) -> Unit,
     onBack: () -> Unit,
     onClearOne: () -> Unit,
-    onClearAll: () -> Unit
+    onClearAll: () -> Unit,
+    navController: NavController
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(folder.name) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        navController.navigate("main")
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 }

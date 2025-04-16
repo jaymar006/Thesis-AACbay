@@ -55,7 +55,7 @@ fun MainScreen(
     onClearSelection: () -> Unit,
     onRemoveLastSelection: () -> Unit,
     navController: NavController,
-    gridColumns: Int = 4,
+    gridColumns: Int = 6,
     isGridColumn: Boolean = true
 ) {
 

@@ -8,7 +8,6 @@ import com.cloudinary.android.callback.UploadCallback
 import com.example.ripdenver.BuildConfig.API_KEY
 import com.example.ripdenver.BuildConfig.API_SECRET
 import com.example.ripdenver.BuildConfig.CLOUD_NAME
-import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -24,14 +23,6 @@ object CloudinaryManager {
         MediaManager.init(context, config)
     }
 
-    suspend fun uploadImageToCloudinary(context: Context, file: File): String? {
-        return try {
-            CloudinaryManager.uploadImage(context, Uri.fromFile(file))
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
 
     suspend fun uploadImage(context: Context, uri: Uri): String {
         return suspendCoroutine { continuation ->

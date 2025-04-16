@@ -35,6 +35,8 @@ class MainActivity : ComponentActivity() {
                     navController = navController,
                     startDestination = "main"
                 ) {
+                    navController.enableOnBackPressed(true)
+
                     composable("main") {
                         MainScreen(
                             cards = cards,
@@ -69,9 +71,10 @@ class MainActivity : ComponentActivity() {
                                 onCardClick = { card ->
                                     mainViewModel.addToSelection(card)
                                 },
-                                onBack = { navController.popBackStack() },
+                                onBack = { navController.navigate("main") },
                                 onClearOne = { mainViewModel.removeLastSelection() },
-                                onClearAll = { mainViewModel.clearSelection() }
+                                onClearAll = { mainViewModel.clearSelection() },
+                                navController = navController
                             )
                         }
                     }
