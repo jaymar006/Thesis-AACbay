@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.navigate("main") },
                                 onClearOne = { mainViewModel.removeLastSelection() },
                                 onClearAll = { mainViewModel.clearSelection() },
+                                onAddClick = { navController.navigate("addModule") },
                                 navController = navController
                             )
                         }

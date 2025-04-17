@@ -30,6 +30,7 @@ fun FolderScreen(
     cards: List<Card>,
     selectedItems: List<Card>,
     onCardClick: (Card) -> Unit,
+    onAddClick: () -> Unit,
     onBack: () -> Unit,
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
@@ -58,7 +59,8 @@ fun FolderScreen(
             SelectionContainer(
                 selectedItems = selectedItems,
                 onClearOne = onClearOne,
-                onClearAll = onClearAll
+                onClearAll = onClearAll,
+                onAddClick = onAddClick
             )
 
             // Cards Grid

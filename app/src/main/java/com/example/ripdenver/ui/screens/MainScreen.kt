@@ -16,10 +16,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -28,8 +32,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -60,19 +65,7 @@ fun MainScreen(
 ) {
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("") },
-                navigationIcon = {
-                    Row {
-                        IconButton(onClick = { /* Settings */ }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
-                        }
-                    }
-                },
-                modifier = Modifier.height(58.dp)
-            )
-        }
+
     ) { padding ->
         Box(modifier = Modifier
             .padding(padding)
@@ -82,7 +75,8 @@ fun MainScreen(
                 SelectionContainer(
                     selectedItems = selectedCards,
                     onClearOne = onRemoveLastSelection,
-                    onClearAll = onClearSelection
+                    onClearAll = onClearSelection,
+                    onAddClick = onAddClick
                 )
 
                 LazyVerticalGrid(
@@ -113,7 +107,6 @@ fun MainScreen(
 
             // Floating buttons OVERLAY
             ControlButtons(
-                onAddClick = onAddClick,
                 onMicClick = onMicClick,
                 modifier = Modifier
                     .fillMaxSize() // only needed to align
@@ -128,8 +121,11 @@ fun SelectionContainer(
     selectedItems: List<Card>,
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
+    onAddClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val showDropdownMenu = remember { mutableStateOf(false) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -153,10 +149,48 @@ fun SelectionContainer(
             Icon(Icons.AutoMirrored.Filled.Backspace, "Remove last")
         }
         IconButton(onClick = onClearAll) {
-            Icon(Icons.Default.Delete, "Clear all")
+            Icon(Icons.Default.RemoveCircle, "Clear all")
         }
-        IconButton(onClick = { /* Edit action */ }) {
-            Icon(Icons.Default.Edit, contentDescription = "Edit")
+        Box {
+            IconButton(onClick = { showDropdownMenu.value = true }) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit")
+            }
+            DropdownMenu(
+                expanded = showDropdownMenu.value,
+                onDismissRequest = { showDropdownMenu.value = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Magdagdag ng Kard") },
+                    onClick = {
+                        onAddClick()
+                        showDropdownMenu.value = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Add, contentDescription = "Add")
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("I-edit ang Kard") },
+                    onClick = {
+                        showDropdownMenu.value = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Tangalin ang Kard") },
+                    onClick = {
+                        showDropdownMenu.value = false
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete")
+                    }
+                )
+            }
+        }
+        IconButton(onClick = { /* Settings */ }) {
+            Icon(Icons.Default.Settings, contentDescription = "Settings")
         }
     }
 }
@@ -172,27 +206,13 @@ private fun SelectedCardItem(card: Card) {
 
 @Composable
 private fun ControlButtons(
-    onAddClick: () -> Unit,
     onMicClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier.fillMaxSize(), // changed from fillMaxWidth
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Add button - Bottom Start
-        FloatingActionButton(
-            onClick = onAddClick,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
-            elevation = FloatingActionButtonDefaults.elevation()
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Add")
-        }
-
-        // Mic button - Bottom End
         FloatingActionButton(
             onClick = onMicClick,
             modifier = Modifier
@@ -206,7 +226,6 @@ private fun ControlButtons(
         }
     }
 }
-
 // Add this in a utils file or where you keep shared functions
 @Composable
 fun calculateItemSize(columns: Int): Dp {
