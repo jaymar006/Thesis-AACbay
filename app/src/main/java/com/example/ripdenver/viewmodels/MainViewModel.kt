@@ -128,21 +128,20 @@ class MainViewModel : ViewModel() {
 
     private suspend fun deleteCard(card: Card) {
         try {
-            android.util.Log.d("CardDeletion", "Starting deletion for card: ${card.id}")
-            android.util.Log.d("CardDeletion", "Cloudinary ID: ${card.cloudinaryPublicId}")
+            android.util.Log.d("CardDeletion", "Starting deletion for card ID: ${card.id}")
+            android.util.Log.d("CardDeletion", "Using Cloudinary Public ID: ${card.cloudinaryPublicId}")
 
-            // Delete from Firebase
-            database.child("cards").child(card.id).removeValue().await()
-            android.util.Log.d("CardDeletion", "Firebase deletion successful")
-
-            // If there's a Cloudinary image, try to delete it
+            // Delete from Cloudinary first using the cloudinaryPublicId
             if (card.cloudinaryPublicId.isNotEmpty()) {
                 android.util.Log.d("CardDeletion", "Attempting Cloudinary deletion")
+                // Here's where we pass the cloudinaryPublicId, not the card.id
                 val deleteResult = CloudinaryManager.deleteImage(card.cloudinaryPublicId)
                 android.util.Log.d("CardDeletion", "Cloudinary deletion result: $deleteResult")
-            } else {
-                android.util.Log.d("CardDeletion", "No Cloudinary ID to delete")
             }
+
+            // Then delete from Firebase using card.id
+            database.child("cards").child(card.id).removeValue().await()
+            android.util.Log.d("CardDeletion", "Firebase deletion successful")
         } catch (e: Exception) {
             android.util.Log.e("CardDeletion", "Error deleting card", e)
             throw e

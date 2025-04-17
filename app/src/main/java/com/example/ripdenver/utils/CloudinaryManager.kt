@@ -8,6 +8,8 @@ import com.cloudinary.android.callback.UploadCallback
 import com.example.ripdenver.BuildConfig.API_KEY
 import com.example.ripdenver.BuildConfig.API_SECRET
 import com.example.ripdenver.BuildConfig.CLOUD_NAME
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -55,36 +57,30 @@ object CloudinaryManager {
     }
 
     suspend fun deleteImage(publicId: String): Boolean {
-        return suspendCoroutine { continuation ->
-            try {
-                android.util.Log.d("Cloudinary", "Starting image deletion for: $publicId")
+        return withContext(Dispatchers.IO) {
+            suspendCoroutine { continuation ->
+                try {
+                    android.util.Log.d("Cloudinary", "Starting image deletion for: $publicId")
 
-                val cloudinary = MediaManager.get().getCloudinary()
+                    val cloudinary = MediaManager.get().getCloudinary()
 
-                // Extract just the filename part if needed
-                val cleanPublicId = publicId.substringAfter("aac_cards/")
-                android.util.Log.d("Cloudinary", "Clean public ID: $cleanPublicId")
+                    val options = mapOf(
+                        "resource_type" to "image",
+                        "invalidate" to true
+                    )
 
-                val options = mapOf(
-                    "resource_type" to "image",
-                    "invalidate" to true
-                )
+                    val result = cloudinary.uploader().destroy(publicId, options)
+                    android.util.Log.d("Cloudinary", "Raw deletion result: $result")
 
-                // Execute the deletion with just the filename
-                val result = cloudinary.uploader().destroy(
-                    "aac_cards/$cleanPublicId",
-                    options
-                )
-                android.util.Log.d("Cloudinary", "Raw deletion result: $result")
+                    val success = result?.get("result") == "ok"
+                    android.util.Log.d("Cloudinary", "Deletion success: $success")
 
-                val success = result?.get("result") == "ok"
-                android.util.Log.d("Cloudinary", "Deletion success: $success")
-
-                continuation.resume(success)
-            } catch (e: Exception) {
-                android.util.Log.e("Cloudinary", "Error during deletion", e)
-                e.printStackTrace()
-                continuation.resume(false)
+                    continuation.resume(success)
+                } catch (e: Exception) {
+                    android.util.Log.e("Cloudinary", "Error during deletion", e)
+                    e.printStackTrace()
+                    continuation.resume(false)
+                }
             }
         }
     }
