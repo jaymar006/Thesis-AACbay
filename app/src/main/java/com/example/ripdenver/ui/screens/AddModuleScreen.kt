@@ -87,6 +87,8 @@ fun AddModuleScreen(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedSymbolUrl: String? by remember { mutableStateOf(null) }
+
 
 
     var showImageSourceDialog by remember { mutableStateOf(false) }
@@ -108,22 +110,11 @@ fun AddModuleScreen(
     val onSymbolSelected: (String) -> Unit = { imageUrl ->
         isLoading = true
         imageUri = Uri.parse(imageUrl)
-
-        viewModel.handleSymbolSelection(
-            context = context,
-            imageUrl = imageUrl,
-            onSuccess = { urlAndPublicId ->
-                imageUri = Uri.parse(urlAndPublicId.first)
-                viewModel.updateCardImage(urlAndPublicId)
-                isLoading = false
-                showSymbolSearchDialog = false
-            },
-            onError = { error ->
-                errorMessage = error
-                isLoading = false
-            }
-        )
+        selectedSymbolUrl = imageUrl // <-- Store image URL
+        isLoading = false
     }
+
+
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -223,6 +214,9 @@ fun AddModuleScreen(
             }
             if (showImageSourceDialog) {
                 AlertDialog(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.CenterHorizontally),
                     onDismissRequest = { showImageSourceDialog = false },
                     title = { Text("") },
                     text = {
@@ -392,12 +386,35 @@ fun AddModuleScreen(
             Button(
                 onClick = {
                     scope.launch {
+                        isLoading = true
                         if (uiState.isCardSelected) {
-                            viewModel.saveCard {
-                                onSaveComplete()
+                            // If a symbol was selected
+                            selectedSymbolUrl?.let { imageUrl ->
+                                viewModel.handleSymbolSelection(
+                                    context = context,
+                                    imageUrl = imageUrl,
+                                    onSuccess = { urlAndPublicId ->
+                                        // After upload, save the card
+                                        viewModel.saveCard {
+                                            isLoading = false
+                                            onSaveComplete()
+                                        }
+                                    },
+                                    onError = { error ->
+                                        errorMessage = error
+                                        isLoading = false
+                                    }
+                                )
+                            } ?: run {
+                                // No image selected, just save
+                                viewModel.saveCard {
+                                    isLoading = false
+                                    onSaveComplete()
+                                }
                             }
                         } else {
                             viewModel.saveFolder()
+                            isLoading = false
                             onSaveComplete()
                         }
                     }
