@@ -128,15 +128,24 @@ class MainViewModel : ViewModel() {
 
     private suspend fun deleteCard(card: Card) {
         try {
-            // Delete from Firebase regardless of Cloudinary status
-            val firebaseDelete = database.child("cards").child(card.id).removeValue().await()
+            android.util.Log.d("CardDeletion", "Starting deletion for card: ${card.id}")
+            android.util.Log.d("CardDeletion", "Cloudinary ID: ${card.cloudinaryPublicId}")
+
+            // Delete from Firebase
+            database.child("cards").child(card.id).removeValue().await()
+            android.util.Log.d("CardDeletion", "Firebase deletion successful")
 
             // If there's a Cloudinary image, try to delete it
             if (card.cloudinaryPublicId.isNotEmpty()) {
-                CloudinaryManager.deleteImage(card.cloudinaryPublicId)
+                android.util.Log.d("CardDeletion", "Attempting Cloudinary deletion")
+                val deleteResult = CloudinaryManager.deleteImage(card.cloudinaryPublicId)
+                android.util.Log.d("CardDeletion", "Cloudinary deletion result: $deleteResult")
+            } else {
+                android.util.Log.d("CardDeletion", "No Cloudinary ID to delete")
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("CardDeletion", "Error deleting card", e)
+            throw e
         }
     }
 

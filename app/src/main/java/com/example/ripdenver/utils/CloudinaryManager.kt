@@ -57,12 +57,33 @@ object CloudinaryManager {
     suspend fun deleteImage(publicId: String): Boolean {
         return suspendCoroutine { continuation ->
             try {
-                val result = MediaManager.get().getCloudinary().uploader().destroy(
-                    publicId,
-                    mutableMapOf<Any?, Any?>()
+                android.util.Log.d("Cloudinary", "Starting image deletion for: $publicId")
+
+                val cloudinary = MediaManager.get().getCloudinary()
+
+                // Extract just the filename part if needed
+                val cleanPublicId = publicId.substringAfter("aac_cards/")
+                android.util.Log.d("Cloudinary", "Clean public ID: $cleanPublicId")
+
+                val options = mapOf(
+                    "resource_type" to "image",
+                    "invalidate" to true
                 )
-                continuation.resume(result != null)
+
+                // Execute the deletion with just the filename
+                val result = cloudinary.uploader().destroy(
+                    "aac_cards/$cleanPublicId",
+                    options
+                )
+                android.util.Log.d("Cloudinary", "Raw deletion result: $result")
+
+                val success = result?.get("result") == "ok"
+                android.util.Log.d("Cloudinary", "Deletion success: $success")
+
+                continuation.resume(success)
             } catch (e: Exception) {
+                android.util.Log.e("Cloudinary", "Error during deletion", e)
+                e.printStackTrace()
                 continuation.resume(false)
             }
         }
