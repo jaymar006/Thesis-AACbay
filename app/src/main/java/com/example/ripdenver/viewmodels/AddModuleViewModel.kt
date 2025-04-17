@@ -126,14 +126,23 @@ class AddModuleViewModel : ViewModel() {
 
 
     fun saveFolder() = viewModelScope.launch {
-        // Implement actual save logic
-        val newFolder = uiState.value.run {
-            Folder(
-                name = folderLabel,
-                color = folderColor
+        try {
+            val folder = Folder(
+                id = UUID.randomUUID().toString(),
+                name = uiState.value.folderLabel,
+                color = uiState.value.folderColor,
+                createdAt = System.currentTimeMillis()
             )
+
+            // Save to Firebase
+            Firebase.database.reference
+                .child("folders")
+                .child(folder.id)
+                .setValue(folder)
+                .await()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        // TODO: Save to Firebase
     }
 
     suspend fun uploadImageAndGetUrl(context: android.content.Context, uri: Uri): String {
