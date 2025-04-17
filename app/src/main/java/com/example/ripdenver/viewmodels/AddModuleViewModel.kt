@@ -14,6 +14,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +41,8 @@ class AddModuleViewModel : ViewModel() {
     private val _isLoadingPictograms = mutableStateOf(false)
     val isLoadingPictograms: Boolean get() = _isLoadingPictograms.value
 
+    private var searchJob: kotlinx.coroutines.Job? = null
+    private val searchDelay = 500L // 500ms delay for debouncing
 
 
     // Add to AddModuleViewModel.kt
@@ -55,7 +58,14 @@ class AddModuleViewModel : ViewModel() {
         suspend fun getAllPictograms(
             @Path("language") language: String = "en"
         ): List<ArasaacPictogram>
+
+        @GET("v1/pictograms/{language}/bestsearch/{searchText}")
+        suspend fun searchPictograms(
+            @Path("language") language: String = "en",
+            @Path("searchText") searchText: String
+        ): List<ArasaacPictogram>
     }
+
 
     // Add to AddModuleViewModel
     private val arasaacApi: ArasaacApiService by lazy {
@@ -65,6 +75,35 @@ class AddModuleViewModel : ViewModel() {
             .build()
             .create(ArasaacApiService::class.java)
     }
+
+
+    fun searchPictograms(query: String) {
+        // Cancel previous search job if it exists
+        searchJob?.cancel()
+
+        // Start new search job
+        searchJob = viewModelScope.launch {
+            _isLoadingPictograms.value = true
+            try {
+                delay(searchDelay) // Add debouncing delay
+                _pictograms.value = if (query.isBlank()) {
+                    arasaacApi.getAllPictograms()
+                } else {
+                    arasaacApi.searchPictograms(searchText = query)
+                }
+            } catch (e: Exception) {
+                _pictograms.value = emptyList()
+            } finally {
+                _isLoadingPictograms.value = false
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        searchJob?.cancel()
+    }
+
 
     fun setFolderId(folderId: String) {
         _uiState.value = _uiState.value.copy(folderId = folderId)

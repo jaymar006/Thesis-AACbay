@@ -258,6 +258,8 @@ fun AddModuleScreen(
 
             // Symbol Search Dialog
             if (showSymbolSearchDialog) {
+                var searchQuery by remember { mutableStateOf("") }
+
                 CustomDialog(onDismissRequest = { showSymbolSearchDialog = false }) {
                     Column(
                         modifier = Modifier
@@ -265,17 +267,31 @@ fun AddModuleScreen(
                             .fillMaxWidth()
                     ) {
                         Text(
-                            text = "Select Symbol",
+                            text = "Pumili ng Simbolo",
                             style = MaterialTheme.typography.titleLarge,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
+
+                        // Search field
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { query ->
+                                searchQuery = query
+                                viewModel.searchPictograms(query)
+                            },
+                            label = { Text("Search Symbols(english)") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
+                        )
+
                         if (viewModel.isLoadingPictograms) {
                             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                         } else {
                             LazyVerticalGrid(
-                                columns = GridCells.Fixed(3), // 3x3 grid
+                                columns = GridCells.Fixed(3),
                                 modifier = Modifier
-                                    .height(600.dp) // Adjust height as needed
+                                    .height(500.dp)
                                     .fillMaxWidth()
                             ) {
                                 items(viewModel.pictograms.size) { index ->
@@ -289,6 +305,7 @@ fun AddModuleScreen(
                                 }
                             }
                         }
+
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = { showSymbolSearchDialog = false },
