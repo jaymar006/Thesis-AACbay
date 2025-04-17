@@ -10,13 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
@@ -33,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -125,22 +128,34 @@ fun SelectionContainer(
     modifier: Modifier = Modifier
 ) {
     val showDropdownMenu = remember { mutableStateOf(false) }
+    val lazyListState: LazyListState = rememberLazyListState()
+
+    LaunchedEffect(selectedItems.size) {
+        if (selectedItems.isNotEmpty()) {
+            lazyListState.animateScrollToItem(selectedItems.size - 1)
+        }
+    }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(80.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Selected items
-        Row(
-            modifier = Modifier.weight(1f),
+        // Scrollable selected items
+        androidx.compose.foundation.lazy.LazyRow(
+            state = lazyListState,
+            modifier = Modifier
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            selectedItems.forEach { card ->
-                SelectedCardItem(card = card)
+            items(selectedItems) { card ->
+                SelectedCardItem(
+                    card = card,
+                    modifier = Modifier.size(60.dp)
+                )
             }
         }
 
@@ -196,13 +211,20 @@ fun SelectionContainer(
 }
 
 @Composable
-private fun SelectedCardItem(card: Card) {
-    CardItem(
-        card = card,
-        onClick = {}, // No action needed for selected items
-        modifier = Modifier.size(60.dp)// Smaller size for the selected card,
-    )
+private fun SelectedCardItem(
+    card: Card,
+    modifier: Modifier = Modifier
+) {
+    Box(
+    ) {
+        CardItem(
+            card = card,
+            onClick = {},
+            modifier.fillMaxSize()
+        )
+    }
 }
+
 
 @Composable
 private fun ControlButtons(
@@ -226,11 +248,4 @@ private fun ControlButtons(
         }
     }
 }
-// Add this in a utils file or where you keep shared functions
-@Composable
-fun calculateItemSize(columns: Int): Dp {
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
-    val padding = 8.dp // Total horizontal padding per item
-    return (screenWidth - (padding * columns)) / columns
-}
+
