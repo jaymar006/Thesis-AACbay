@@ -5,8 +5,8 @@ data class AddModuleState(
     val cardLabel: String = "",
     val cardVocalization: String = "",
     val cardColor: String = "#FF0000",
-    val cardImagePath: String = "",
+    val cardImagePath: Pair<String, String> = Pair("", ""), // URL and PublicID
     val folderLabel: String = "",
-    val folderColor: String = "#6200EE",
+    val folderColor: String = "#FF0000",
     val folderId: String = ""
 )

@@ -110,8 +110,8 @@ class AddModuleViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(cardColor = color)
     }
 
-    fun updateCardImage(path: String) {
-        _uiState.value = _uiState.value.copy(cardImagePath = path)
+    fun updateCardImage(urlAndId: Pair<String, String>) {
+        _uiState.value = _uiState.value.copy(cardImagePath = urlAndId)
     }
 
     fun updateFolderLabel(label: String) {
@@ -145,7 +145,7 @@ class AddModuleViewModel : ViewModel() {
         }
     }
 
-    suspend fun uploadImageAndGetUrl(context: android.content.Context, uri: Uri): String {
+    suspend fun uploadImageAndGetUrl(context: Context, uri: Uri): Pair<String, String> {
         return CloudinaryManager.uploadImage(context, uri)
     }
 
@@ -157,8 +157,9 @@ class AddModuleViewModel : ViewModel() {
                     label = cardLabel,
                     vocalization = cardVocalization,
                     color = cardColor,
-                    cloudinaryUrl = cardImagePath,
-                    folderId = folderId, // Use the folderId from state
+                    cloudinaryUrl = cardImagePath.first,
+                    cloudinaryPublicId = cardImagePath.second,
+                    folderId = folderId,
                     usageCount = 0,
                     lastUsed = System.currentTimeMillis()
                 )
@@ -198,15 +199,18 @@ class AddModuleViewModel : ViewModel() {
         }
     }
 
-    suspend fun uploadArasaacImage(context: Context, imageUrl: String): String {
+    suspend fun uploadArasaacImage(context: Context, imageUrl: String): Pair<String, String> {
         return withContext(Dispatchers.IO) {
             try {
                 // Download the image
                 val file = downloadImage(context, imageUrl)
 
                 // Upload the file to Cloudinary
-                val cloudinaryUrl = CloudinaryManager.uploadImage(context, Uri.fromFile(file))
-                cloudinaryUrl ?: throw Exception("Cloudinary upload failed: returned null or empty URL")
+                val (url, publicId) = CloudinaryManager.uploadImage(context, Uri.fromFile(file))
+                if (url.isEmpty() || publicId.isEmpty()) {
+                    throw Exception("Cloudinary upload failed: returned null or empty values")
+                }
+                Pair(url, publicId)
             } catch (e: Exception) {
                 e.printStackTrace()
                 throw Exception("Failed to upload ARASAAC image: ${e.message}")
@@ -218,17 +222,14 @@ class AddModuleViewModel : ViewModel() {
     fun handleSymbolSelection(
         context: Context,
         imageUrl: String,
-        onSuccess: (String) -> Unit,
+        onSuccess: (Pair<String, String>) -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
             try {
-                // Upload the image to Cloudinary and update UI state
-                val cloudinaryUrl = uploadArasaacImage(context, imageUrl)
-                updateCardImage(cloudinaryUrl)
-
-                // Only notify success with the cloudinary URL
-                onSuccess(cloudinaryUrl)
+                val urlAndId = uploadArasaacImage(context, imageUrl)
+                updateCardImage(urlAndId)
+                onSuccess(urlAndId)
             } catch (e: Exception) {
                 onError("Failed to upload symbol: ${e.message}")
             }

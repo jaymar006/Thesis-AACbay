@@ -19,11 +19,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -62,11 +66,48 @@ fun MainScreen(
     onRemoveLastSelection: () -> Unit,
     navController: NavController,
     gridColumns: Int = 6,
-    isGridColumn: Boolean = true
+    isGridColumn: Boolean = true,
+    isDeleteMode: Boolean,
+    itemsToDelete: List<Any>,
+    onToggleDeleteMode: (Boolean) -> Unit,
+    onToggleItemForDeletion: (Any) -> Unit,
+    onDeleteSelectedItems: () -> Unit
 ) {
     val unassignedCards = cards.filter { it.folderId == null || it.folderId.isEmpty() }
+    val showDeleteConfirmation = remember { mutableStateOf(false)}
     Scaffold(
-
+        floatingActionButton = {
+            if (isDeleteMode) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FloatingActionButton(
+                        onClick = { onToggleDeleteMode(false) },
+                        containerColor = MaterialTheme.colorScheme.error
+                    ) {
+                        Icon(Icons.Default.Close, "Cancel")
+                    }
+                    FloatingActionButton(
+                        onClick = {
+                            if (itemsToDelete.isNotEmpty()) {
+                                showDeleteConfirmation.value = true
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(Icons.Default.Delete, "Delete")
+                    }
+                }
+            } else {
+                // Your existing mic button
+                ControlButtons(
+                    onMicClick = onMicClick,
+                    modifier = Modifier
+                        .fillMaxSize() // only needed to align
+                        .padding(top = 16.dp)
+                )
+            }
+        }
     ) { padding ->
         Box(modifier = Modifier
             .padding(padding)
@@ -77,7 +118,8 @@ fun MainScreen(
                     selectedItems = selectedCards,
                     onClearOne = onRemoveLastSelection,
                     onClearAll = onClearSelection,
-                    onAddClick = onAddClick
+                    onAddClick = onAddClick,
+                    onToggleDeleteMode = onToggleDeleteMode
                 )
 
                 LazyVerticalGrid(
@@ -85,34 +127,73 @@ fun MainScreen(
                     else GridCells.Adaptive(minSize = 150.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    items(folders) { folder ->
-                        FolderItem(
-                            folder = folder,
-                            onClick = {
-                                onFolderClick(folder)
-                                navController.navigate("folder/${folder.id}")
+                    items(folders) {  folder ->
+                        Box {
+                            FolderItem(folder = folder, onClick = {
+                                if (isDeleteMode) {
+                                    onToggleItemForDeletion(folder)
+                                } else {
+                                    onFolderClick(folder)
+                                }
+                            })
+                            if (isDeleteMode) {
+                                Checkbox(
+                                    checked = folder in itemsToDelete,
+                                    onCheckedChange = { onToggleItemForDeletion(folder) },
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                )
                             }
-                        )
+                        }
                     }
-
                     items(unassignedCards) { card ->
-                        CardItem(
-                            card = card,
-                            onClick = {
-                                onCardClick(card)
+                        Box {
+                            CardItem(card = card, onClick = {
+                                if (isDeleteMode) {
+                                    onToggleItemForDeletion(card)
+                                } else {
+                                    onCardClick(card)
+                                }
+                            })
+                            if (isDeleteMode) {
+                                Checkbox(
+                                    checked = card in itemsToDelete,
+                                    onCheckedChange = { onToggleItemForDeletion(card) },
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                )
                             }
-                        )
+                        }
                     }
                 }
+
+            }
+            if (showDeleteConfirmation.value) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteConfirmation.value = false },
+                    title = { Text("Kumpirmahin ang Pagtanggal") },
+                    text = { Text("Sigurado ka bang gusto mong tanggalin ang mga ito? Hindi na ito maibabalik pa.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onDeleteSelectedItems()
+                                showDeleteConfirmation.value = false
+                            }
+                        ) {
+                            Text("Tanggalin")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showDeleteConfirmation.value = false }
+                        ) {
+                            Text("Kanselahin")
+                        }
+                    }
+                )
             }
 
+
             // Floating buttons OVERLAY
-            ControlButtons(
-                onMicClick = onMicClick,
-                modifier = Modifier
-                    .fillMaxSize() // only needed to align
-                    .padding(bottom = 16.dp)
-            )
+
         }
     }
 }
@@ -123,6 +204,7 @@ fun SelectionContainer(
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
     onAddClick: () -> Unit,
+    onToggleDeleteMode: (Boolean) -> Unit,
     currentFolderId: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -201,6 +283,7 @@ fun SelectionContainer(
                     text = { Text("Tangalin ang Kard") },
                     onClick = {
                         showDropdownMenu.value = false
+                        onToggleDeleteMode(true)
                     },
                     leadingIcon = {
                         Icon(Icons.Default.Delete, contentDescription = "Delete")

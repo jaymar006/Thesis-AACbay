@@ -107,17 +107,14 @@ fun AddModuleScreen(
 
     val onSymbolSelected: (String) -> Unit = { imageUrl ->
         isLoading = true
-        // Show ARASAAC image immediately for preview
         imageUri = Uri.parse(imageUrl)
-        viewModel.updateCardImage(imageUrl) // Update the state immediately
 
         viewModel.handleSymbolSelection(
             context = context,
             imageUrl = imageUrl,
-            onSuccess = { cloudinaryUrl ->
-                // Update preview with Cloudinary URL
-                imageUri = Uri.parse(cloudinaryUrl)
-                viewModel.updateCardImage(cloudinaryUrl)
+            onSuccess = { urlAndPublicId ->
+                imageUri = Uri.parse(urlAndPublicId.first)
+                viewModel.updateCardImage(urlAndPublicId)
                 isLoading = false
                 showSymbolSearchDialog = false
             },
@@ -396,19 +393,9 @@ fun AddModuleScreen(
                 onClick = {
                     scope.launch {
                         if (uiState.isCardSelected) {
-                            // Create and save card only when Save is clicked
-                            val card = com.example.ripdenver.models.Card(
-                                id = java.util.UUID.randomUUID().toString(),
-                                label = uiState.cardLabel,
-                                vocalization = uiState.cardVocalization,
-                                color = uiState.cardColor,
-                                cloudinaryUrl = uiState.cardImagePath,
-                                folderId = folderId,
-                                usageCount = 0,
-                                lastUsed = System.currentTimeMillis()
-                            )
-                            viewModel.saveImageToFirebase(card)
-                            onSaveComplete()
+                            viewModel.saveCard {
+                                onSaveComplete()
+                            }
                         } else {
                             viewModel.saveFolder()
                             onSaveComplete()

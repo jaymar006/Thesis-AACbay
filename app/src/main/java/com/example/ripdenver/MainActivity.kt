@@ -40,6 +40,8 @@ class MainActivity : ComponentActivity() {
                     navController.enableOnBackPressed(true)
 
                     composable("main") {
+                        val isDeleteMode by mainViewModel.isDeleteMode.collectAsState()
+                        val itemsToDelete by mainViewModel.itemsToDelete.collectAsState()
                         MainScreen(
                             cards = cards,
                             folders = folders,
@@ -56,6 +58,11 @@ class MainActivity : ComponentActivity() {
                             onMicClick = { /* Handle mic click */ },
                             onClearSelection = { mainViewModel.clearSelection() },
                             onRemoveLastSelection = { mainViewModel.removeLastSelection() },
+                            onToggleDeleteMode = { mainViewModel.toggleDeleteMode(it) },
+                            isDeleteMode = isDeleteMode,
+                            itemsToDelete = itemsToDelete,
+                            onToggleItemForDeletion = { mainViewModel.toggleItemForDeletion(it) },
+                            onDeleteSelectedItems = { mainViewModel.deleteSelectedItems() },
                             navController = navController
                         )
                     }
@@ -77,6 +84,7 @@ class MainActivity : ComponentActivity() {
                                 onClearOne = { mainViewModel.removeLastSelection() },
                                 onClearAll = { mainViewModel.clearSelection() },
                                 onAddClick = { navController.navigate("addModule?folderId=$folderId") },
+                                onToggleDeleteMode = { mainViewModel.toggleDeleteMode(it) },
                                 navController = navController
                             )
                         }

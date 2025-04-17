@@ -23,8 +23,11 @@ class CardViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val finalCard = if (imageUri != null) {
-                    val imageUrl = CloudinaryManager.uploadImage(context, imageUri)
-                    card.copy(cloudinaryUrl = imageUrl)
+                    val (url, publicId) = CloudinaryManager.uploadImage(context, imageUri)
+                    card.copy(
+                        cloudinaryUrl = url,
+                        cloudinaryPublicId = publicId
+                    )
                 } else {
                     card
                 }

@@ -24,7 +24,10 @@ object CloudinaryManager {
     }
 
 
-    suspend fun uploadImage(context: Context, uri: Uri): String {
+
+
+
+    suspend fun uploadImage(context: Context, uri: Uri): Pair<String, String> {
         return suspendCoroutine { continuation ->
             MediaManager.get().upload(uri)
                 .option("folder", "aac_cards")
@@ -32,19 +35,36 @@ object CloudinaryManager {
                     override fun onStart(requestId: String) {}
                     override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
                     override fun onSuccess(requestId: String, resultData: Map<Any?, Any?>) {
-                        (resultData["url"] as? String)?.let {
-                            continuation.resume(it)
-                        } ?: continuation.resumeWithException(Exception("No URL returned"))
+                        val url = resultData["url"] as? String
+                        val publicId = resultData["public_id"] as? String
+                        if (url != null && publicId != null) {
+                            continuation.resume(Pair(url, publicId))
+                        } else {
+                            continuation.resumeWithException(Exception("Missing URL or public ID"))
+                        }
                     }
 
                     override fun onError(requestId: String, error: ErrorInfo) {
-                        continuation.resumeWithException(Exception(error.description))
                         continuation.resumeWithException(Exception("Cloudinary upload failed: ${error.description}"))
                     }
 
                     override fun onReschedule(requestId: String, error: ErrorInfo) {}
                 })
                 .dispatch(context)
+        }
+    }
+
+    suspend fun deleteImage(publicId: String): Boolean {
+        return suspendCoroutine { continuation ->
+            try {
+                val result = MediaManager.get().getCloudinary().uploader().destroy(
+                    publicId,
+                    mutableMapOf<Any?, Any?>()
+                )
+                continuation.resume(result != null)
+            } catch (e: Exception) {
+                continuation.resume(false)
+            }
         }
     }
 }

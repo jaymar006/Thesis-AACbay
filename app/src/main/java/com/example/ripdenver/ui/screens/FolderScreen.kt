@@ -34,6 +34,7 @@ fun FolderScreen(
     onBack: () -> Unit,
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
+    onToggleDeleteMode: (Boolean) -> Unit,
     navController: NavController
 ) {
     Scaffold(
@@ -61,7 +62,9 @@ fun FolderScreen(
                 onClearOne = onClearOne,
                 onClearAll = onClearAll,
                 onAddClick = onAddClick,
-                currentFolderId = folder.id
+                currentFolderId = folder.id,
+                onToggleDeleteMode = onToggleDeleteMode
+
             )
 
             // Cards Grid
