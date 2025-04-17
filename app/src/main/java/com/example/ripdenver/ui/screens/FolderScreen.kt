@@ -60,7 +60,8 @@ fun FolderScreen(
                 selectedItems = selectedItems,
                 onClearOne = onClearOne,
                 onClearAll = onClearAll,
-                onAddClick = onAddClick
+                onAddClick = onAddClick,
+                currentFolderId = folder.id
             )
 
             // Cards Grid

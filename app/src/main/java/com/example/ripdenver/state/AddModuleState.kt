@@ -8,5 +8,5 @@ data class AddModuleState(
     val cardImagePath: String = "",
     val folderLabel: String = "",
     val folderColor: String = "#6200EE",
-    val folderImagePath: String = ""
+    val folderId: String = ""
 )

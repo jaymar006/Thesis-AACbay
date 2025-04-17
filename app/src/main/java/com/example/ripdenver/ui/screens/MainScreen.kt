@@ -40,8 +40,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.ripdenver.models.Card
@@ -66,7 +64,7 @@ fun MainScreen(
     gridColumns: Int = 6,
     isGridColumn: Boolean = true
 ) {
-
+    val unassignedCards = cards.filter { it.folderId == null || it.folderId.isEmpty() }
     Scaffold(
 
     ) { padding ->
@@ -97,7 +95,7 @@ fun MainScreen(
                         )
                     }
 
-                    items(cards) { card ->
+                    items(unassignedCards) { card ->
                         CardItem(
                             card = card,
                             onClick = {
@@ -125,6 +123,7 @@ fun SelectionContainer(
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
     onAddClick: () -> Unit,
+    currentFolderId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val showDropdownMenu = remember { mutableStateOf(false) }
@@ -175,7 +174,12 @@ fun SelectionContainer(
                 onDismissRequest = { showDropdownMenu.value = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Magdagdag ng Kard") },
+                    text = {
+                        Text(
+                            if (currentFolderId != null) "Magdagdag ng Kard sa Folder"
+                            else "Magdagdag ng Kard/Folder"
+                        )
+                    },
                     onClick = {
                         onAddClick()
                         showDropdownMenu.value = false

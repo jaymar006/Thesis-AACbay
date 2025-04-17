@@ -69,9 +69,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun AddModuleScreen(
     viewModel: AddModuleViewModel = viewModel(),
+    folderId: String = "",
     onBack: () -> Unit,
     onSaveComplete: () -> Unit
 ) {
+
+    LaunchedEffect(folderId) {
+        viewModel.setFolderId(folderId)
+    }
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
@@ -93,6 +99,8 @@ fun AddModuleScreen(
 
         }
     }
+
+
     LaunchedEffect(Unit) {
         viewModel.loadAllPictograms()
     }
@@ -395,7 +403,7 @@ fun AddModuleScreen(
                                 vocalization = uiState.cardVocalization,
                                 color = uiState.cardColor,
                                 cloudinaryUrl = uiState.cardImagePath,
-                                folderId = "",
+                                folderId = folderId,
                                 usageCount = 0,
                                 lastUsed = System.currentTimeMillis()
                             )

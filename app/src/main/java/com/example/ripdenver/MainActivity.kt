@@ -7,9 +7,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.ripdenver.ui.screens.AddModuleScreen
 import com.example.ripdenver.ui.screens.FolderScreen
 import com.example.ripdenver.ui.screens.MainScreen
@@ -74,20 +76,28 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.navigate("main") },
                                 onClearOne = { mainViewModel.removeLastSelection() },
                                 onClearAll = { mainViewModel.clearSelection() },
-                                onAddClick = { navController.navigate("addModule") },
+                                onAddClick = { navController.navigate("addModule?folderId=$folderId") },
                                 navController = navController
                             )
                         }
                     }
 
-                    composable("addModule") {
+                    composable(
+                        "addModule?folderId={folderId}",
+                        arguments = listOf(navArgument("folderId") {
+                            type = NavType.StringType
+                            defaultValue = ""
+                        })
+                    ) { backStackEntry ->
                         val addModuleViewModel: AddModuleViewModel = viewModel()
+                        val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
+
                         AddModuleScreen(
                             viewModel = addModuleViewModel,
+                            folderId = folderId,  // Pass the folderId to AddModuleScreen
                             onBack = { navController.popBackStack() },
                             onSaveComplete = {
                                 navController.popBackStack()
-                                // Refresh data if needed
                             }
                         )
                     }

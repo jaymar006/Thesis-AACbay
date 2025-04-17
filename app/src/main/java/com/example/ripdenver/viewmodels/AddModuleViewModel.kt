@@ -40,6 +40,8 @@ class AddModuleViewModel : ViewModel() {
     private val _isLoadingPictograms = mutableStateOf(false)
     val isLoadingPictograms: Boolean get() = _isLoadingPictograms.value
 
+
+
     // Add to AddModuleViewModel.kt
     data class ArasaacSymbol(
         val id: Int,
@@ -64,6 +66,9 @@ class AddModuleViewModel : ViewModel() {
             .create(ArasaacApiService::class.java)
     }
 
+    fun setFolderId(folderId: String) {
+        _uiState.value = _uiState.value.copy(folderId = folderId)
+    }
 
     fun setPictograms(newPictograms: List<ArasaacPictogram>) {
         _pictograms.value = newPictograms
@@ -117,9 +122,6 @@ class AddModuleViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(folderColor = color)
     }
 
-    fun updateFolderImage(path: String) {
-        _uiState.value = _uiState.value.copy(folderImagePath = path)
-    }
 
 
 
@@ -142,18 +144,17 @@ class AddModuleViewModel : ViewModel() {
         try {
             val card = uiState.value.run {
                 Card(
-                    id = UUID.randomUUID().toString(), // Generate a unique ID
+                    id = UUID.randomUUID().toString(),
                     label = cardLabel,
                     vocalization = cardVocalization,
                     color = cardColor,
-                    cloudinaryUrl = cardImagePath, // Use the updated image path
-                    folderId = "", // Set folderId if applicable
-                    usageCount = 0, // Default usage count
-                    lastUsed = System.currentTimeMillis() // Set the current timestamp
+                    cloudinaryUrl = cardImagePath,
+                    folderId = folderId, // Use the folderId from state
+                    usageCount = 0,
+                    lastUsed = System.currentTimeMillis()
                 )
             }
 
-            // Save the entire Card object to Firebase
             Firebase.database.reference.child("cards").child(card.id)
                 .setValue(card)
                 .await()
