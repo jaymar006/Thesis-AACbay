@@ -1,6 +1,12 @@
 package com.example.ripdenver.ui.screens
 
+import android.util.Log
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Add
@@ -40,16 +47,22 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
+import kotlinx.coroutines.delay
+import org.burnoutcrew.reorderable.ReorderableItem
+import org.burnoutcrew.reorderable.rememberReorderableLazyGridState
+import org.burnoutcrew.reorderable.reorderable
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,12 +88,30 @@ fun MainScreen(
 ) {
     val unassignedCards = cards.filter { it.folderId == null || it.folderId.isEmpty() }
     val showDeleteConfirmation = remember { mutableStateOf(false)}
+    val isEditMode = remember { mutableStateOf(false) }
+    val items = remember(folders, unassignedCards) {
+        mutableStateListOf<Any>().apply {
+            addAll(folders)
+            addAll(unassignedCards)
+        }
+    }
+    val reorderableState = rememberReorderableLazyGridState(
+        onMove = { from, to ->
+            items.apply {
+                add(to.index, removeAt(from.index))
+            }
+        },
+        canDragOver = { draggedOver, dragging ->
+            if (!isEditMode.value) return@rememberReorderableLazyGridState false
+            draggedOver.key!!::class == dragging.key!!::class
+        }
+    )
     Scaffold(
         floatingActionButton = {
-            if (isDeleteMode) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isDeleteMode) {
                     FloatingActionButton(
                         onClick = { onToggleDeleteMode(false) },
                         containerColor = MaterialTheme.colorScheme.error
@@ -97,15 +128,19 @@ fun MainScreen(
                     ) {
                         Icon(Icons.Default.Delete, "Delete")
                     }
+                } else if (isEditMode.value) {
+                    FloatingActionButton(
+                        onClick = { isEditMode.value = false },
+                        containerColor = MaterialTheme.colorScheme.error
+                    ) {
+                        Icon(Icons.Default.Close, "Cancel Edit")
+                    }
+                } else {
+                    ControlButtons(
+                        onMicClick = onMicClick,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
-            } else {
-                // Your existing mic button
-                ControlButtons(
-                    onMicClick = onMicClick,
-                    modifier = Modifier
-                        .fillMaxSize() // only needed to align
-                        .padding(top = 16.dp)
-                )
             }
         }
     ) { padding ->
@@ -119,46 +154,62 @@ fun MainScreen(
                     onClearOne = onRemoveLastSelection,
                     onClearAll = onClearSelection,
                     onAddClick = onAddClick,
-                    onToggleDeleteMode = onToggleDeleteMode
+                    onToggleDeleteMode = onToggleDeleteMode,
+                    onToggleEditMode = { isEditMode.value = it },
                 )
 
                 LazyVerticalGrid(
-                    if(isGridColumn) GridCells.Fixed(gridColumns)
-                    else GridCells.Adaptive(minSize = 150.dp),
-                    modifier = Modifier.weight(1f)
+                    columns = if(isGridColumn) GridCells.Fixed(gridColumns) else GridCells.Adaptive(minSize = 150.dp),
+                    state = reorderableState.gridState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .reorderable(reorderableState)
                 ) {
-                    items(folders) {  folder ->
-                        Box {
-                            FolderItem(folder = folder, onClick = {
-                                if (isDeleteMode) {
-                                    onToggleItemForDeletion(folder)
-                                } else {
-                                    onFolderClick(folder)
-                                }
-                            })
-                            if (isDeleteMode) {
-                                Checkbox(
-                                    checked = folder in itemsToDelete,
-                                    onCheckedChange = { onToggleItemForDeletion(folder) },
-                                    modifier = Modifier.align(Alignment.TopEnd)
-                                )
+                    items(
+                        items = items,
+                        key = { item ->
+                            when (item) {
+                                is Folder -> "folder_${item.id}"
+                                is Card -> "card_${item.id}"
+                                else -> ""
                             }
                         }
-                    }
-                    items(unassignedCards) { card ->
-                        Box {
-                            CardItem(card = card, onClick = {
-                                if (isDeleteMode) {
-                                    onToggleItemForDeletion(card)
-                                } else {
-                                    onCardClick(card)
-                                }
-                            })
-                            if (isDeleteMode) {
-                                Checkbox(
-                                    checked = card in itemsToDelete,
-                                    onCheckedChange = { onToggleItemForDeletion(card) },
-                                    modifier = Modifier.align(Alignment.TopEnd)
+                    ) { item ->
+                        ReorderableItem(reorderableState, key = item) { isDragging ->
+                            when (item) {
+                                is Folder -> FolderListItem(
+                                    folder = item,
+                                    isEditMode = isEditMode.value,
+                                    isDeleteMode = isDeleteMode,
+                                    isSelected = item in itemsToDelete,
+                                    isDragging = isDragging,
+                                    onClick = {
+                                        if (isDeleteMode) {
+                                            onToggleItemForDeletion(item)
+                                        } else if (isEditMode.value) {
+                                            // Handle edit click
+                                        } else {
+                                            onFolderClick(item)
+                                        }
+                                    },
+                                    onToggleDelete = { onToggleItemForDeletion(item) }
+                                )
+                                is Card -> CardListItem(
+                                    card = item,
+                                    isEditMode = isEditMode.value,
+                                    isDeleteMode = isDeleteMode,
+                                    isSelected = item in itemsToDelete,
+                                    isDragging = isDragging,
+                                    onClick = {
+                                        if (isDeleteMode) {
+                                            onToggleItemForDeletion(item)
+                                        } else if (isEditMode.value) {
+                                            // Handle edit click
+                                        } else {
+                                            onCardClick(item)
+                                        }
+                                    },
+                                    onToggleDelete = { onToggleItemForDeletion(item) }
                                 )
                             }
                         }
@@ -205,11 +256,14 @@ fun SelectionContainer(
     onClearAll: () -> Unit,
     onAddClick: () -> Unit,
     onToggleDeleteMode: (Boolean) -> Unit,
+    onToggleEditMode: (Boolean) -> Unit,
     currentFolderId: String? = null,
     modifier: Modifier = Modifier
 ) {
     val showDropdownMenu = remember { mutableStateOf(false) }
     val lazyListState: LazyListState = rememberLazyListState()
+
+
 
     LaunchedEffect(selectedItems.size) {
         if (selectedItems.isNotEmpty()) {
@@ -224,7 +278,7 @@ fun SelectionContainer(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 5.dp),
         verticalAlignment = Alignment.CenterVertically
-    ) {
+    )  {
         // Scrollable selected items
         androidx.compose.foundation.lazy.LazyRow(
             state = lazyListState,
@@ -271,8 +325,10 @@ fun SelectionContainer(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("I-edit ang Kard") },
+                    text = { Text("I-edit ang card") },
                     onClick = {
+                        Log.d("MainScreen", "Edit card clicked")
+                        onToggleEditMode(true)
                         showDropdownMenu.value = false
                     },
                     leadingIcon = {
@@ -291,6 +347,7 @@ fun SelectionContainer(
                 )
             }
         }
+
         IconButton(onClick = { /* Settings */ }) {
             Icon(Icons.Default.Settings, contentDescription = "Settings")
         }
@@ -336,3 +393,110 @@ private fun ControlButtons(
     }
 }
 
+@Composable
+fun EditableItem(
+    isEditMode: Boolean,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val scale = remember { Animatable(1f) }
+
+    LaunchedEffect(isEditMode) {
+        if (isEditMode) {
+            while (true) {
+                scale.animateTo(0.9f,
+                    animationSpec = tween(500, easing = FastOutSlowInEasing))
+                scale.animateTo(1f,
+                    animationSpec = tween(500, easing = FastOutSlowInEasing))
+                delay(1000)
+            }
+        } else {
+            scale.snapTo(1f)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .scale(scale.value)
+            .clickable(enabled = isEditMode) { onClick() }
+    ) {
+        content()
+        if (isEditMode) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+private fun CardListItem(
+    card: Card,
+    isEditMode: Boolean,
+    isDeleteMode: Boolean,
+    isSelected: Boolean,
+    isDragging: Boolean,
+    onClick: () -> Unit,
+    onToggleDelete: () -> Unit
+) {
+    EditableItem(
+        isEditMode = isEditMode,
+        onClick = onClick
+    ) {
+        Box(
+            modifier = Modifier
+                .scale(if (isDragging) 1.1f else 1f)
+        ) {
+            CardItem(
+                card = card,
+                onClick = if (isDeleteMode) onToggleDelete else onClick
+            )
+            if (isDeleteMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleDelete() },
+                    modifier = Modifier.align(Alignment.TopEnd)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderListItem(
+    folder: Folder,
+    isEditMode: Boolean,
+    isDeleteMode: Boolean,
+    isSelected: Boolean,
+    isDragging: Boolean,
+    onClick: () -> Unit,
+    onToggleDelete: () -> Unit
+) {
+    EditableItem(
+        isEditMode = isEditMode,
+        onClick = onClick
+    ) {
+        Box(
+            modifier = Modifier
+                .scale(if (isDragging) 1.1f else 1f)
+        ) {
+            FolderItem(
+                folder = folder,
+                onClick = if (isDeleteMode) onToggleDelete else onClick
+            )
+            if (isDeleteMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleDelete() },
+                    modifier = Modifier.align(Alignment.TopEnd)
+                )
+            }
+        }
+    }
+}
