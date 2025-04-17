@@ -71,6 +71,8 @@ class MainActivity : ComponentActivity() {
                         val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
                         val folder = folders.find { it.id == folderId }
                         val folderCards = cards.filter { it.folderId == folderId }
+                        val isDeleteMode by mainViewModel.isDeleteMode.collectAsState()
+                        val itemsToDelete by mainViewModel.itemsToDelete.collectAsState()
 
                         if (folder != null) {
                             FolderScreen(
@@ -85,6 +87,10 @@ class MainActivity : ComponentActivity() {
                                 onClearAll = { mainViewModel.clearSelection() },
                                 onAddClick = { navController.navigate("addModule?folderId=$folderId") },
                                 onToggleDeleteMode = { mainViewModel.toggleDeleteMode(it) },
+                                isDeleteMode = isDeleteMode,
+                                itemsToDelete = itemsToDelete,
+                                onToggleItemForDeletion = { mainViewModel.toggleItemForDeletion(it) },
+                                onDeleteSelectedItems = { mainViewModel.deleteSelectedItems() },
                                 navController = navController
                             )
                         }

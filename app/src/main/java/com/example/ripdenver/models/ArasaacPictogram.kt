@@ -13,7 +13,7 @@ data class ArasaacPictogram(
     )
 
     // Helper function to get image URL
-    fun getImageUrl(resolution: Int = 300): String {
+    fun getImageUrl(resolution: Int = 500): String {
         return "https://static.arasaac.org/pictograms/$_id/${_id}_${resolution}.png"
     }
 }
