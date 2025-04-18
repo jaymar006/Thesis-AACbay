@@ -148,6 +148,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
+
     private suspend fun deleteFolder(folder: Folder) {
         try {
             // Get all cards in folder
