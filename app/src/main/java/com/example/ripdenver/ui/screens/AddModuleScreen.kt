@@ -483,7 +483,7 @@ private fun ColorSelectionRow(
         "#00FF00" to "Green",
         "#0000FF" to "Blue",
         "#FFFF00" to "Yellow",
-        "#FF00FF" to "Magenta",
+        "#FFFFFF" to "White",
         "#00FFFF" to "Cyan",
         "#FFA500" to "Orange",
         "#800080" to "Purple",

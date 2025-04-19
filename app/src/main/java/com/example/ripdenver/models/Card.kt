@@ -9,5 +9,6 @@ data class Card(
     val cloudinaryPublicId: String = "",
     val folderId: String = "",
     var usageCount: Int = 0,
-    val lastUsed: Long = 0
+    val lastUsed: Long = 0,
+    val order: Int = 0
 )

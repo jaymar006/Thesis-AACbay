@@ -76,7 +76,9 @@ class MainViewModel : ViewModel() {
 
     // Data Loading
     private fun loadCards() {
-        database.child("cards").addValueEventListener(object : ValueEventListener {
+        database.child("cards")
+            .orderByChild("order")
+            .addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 _cards.value = snapshot.children.mapNotNull { it.getValue(Card::class.java) }
             }
@@ -88,7 +90,9 @@ class MainViewModel : ViewModel() {
     }
 
     private fun loadFolders() {
-        database.child("folders").addValueEventListener(object : ValueEventListener {
+        database.child("folders")
+            .orderByChild("folders")
+            .addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 _folders.value = snapshot.children.mapNotNull { it.getValue(Folder::class.java) }
             }
@@ -97,6 +101,23 @@ class MainViewModel : ViewModel() {
                 // Handle error
             }
         })
+    }
+
+    private fun updateItemOrder(item: Any, newOrder: Int) {
+        when (item) {
+            is Folder -> {
+                database.child("folders")
+                    .child(item.id)
+                    .child("order")
+                    .setValue(newOrder)
+            }
+            is Card -> {
+                database.child("cards")
+                    .child(item.id)
+                    .child("order")
+                    .setValue(newOrder)
+            }
+        }
     }
 
     //Card Operation (Delete)

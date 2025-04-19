@@ -62,6 +62,8 @@ import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.ReorderableLazyGridState
@@ -108,6 +110,7 @@ fun MainScreen(
     val showDeleteConfirmation = remember { mutableStateOf(false)}
     val isEditMode = remember { mutableStateOf(false) }
     val items = remember { mutableStateListOf<Any>() }
+    val database = Firebase.database.reference
 
     LaunchedEffect(Unit) {
         Log.d("DRAG_TEST", "Reorderable library initialized. Edit mode: ${isEditMode.value}")
@@ -122,13 +125,26 @@ fun MainScreen(
         onMove = { from, to ->
             Log.d("DRAG_DEBUG", "Attempting to move item from ${from.index} to ${to.index}")
             items.apply {
-                try {
-                    val item = this[from.index]
-                    removeAt(from.index)
-                    add(to.index, item)
-                    Log.d("DRAG_DEBUG", "Successfully moved item")
-                } catch (e: Exception) {
-                    Log.e("DRAG_DEBUG", "Failed to move item", e)
+                val item = this[from.index]
+                removeAt(from.index)
+                add(to.index, item)
+
+                // Update orders in Firebase after reordering
+                items.forEachIndexed { index, item ->
+                    when (item) {
+                        is Folder -> {
+                            database.child("folders")
+                                .child(item.id)
+                                .child("order")
+                                .setValue(index)
+                        }
+                        is Card -> {
+                            database.child("cards")
+                                .child(item.id)
+                                .child("order")
+                                .setValue(index)
+                        }
+                    }
                 }
             }
         },
@@ -475,7 +491,7 @@ fun EditableItem(
                     .border(
                         width = 2.dp,
                         color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = MaterialTheme.shapes.medium
                     )
             )
         }
