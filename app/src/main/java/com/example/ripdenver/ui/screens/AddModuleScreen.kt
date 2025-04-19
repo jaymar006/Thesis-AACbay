@@ -287,6 +287,20 @@ fun AddModuleScreen(
 
                         if (viewModel.isLoadingPictograms) {
                             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        } else if (searchQuery.isNotEmpty() && viewModel.pictograms.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .height(500.dp)
+                                    .fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "Walang resulta para sa '${searchQuery}' :(",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         } else {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(3),
