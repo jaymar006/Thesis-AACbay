@@ -16,9 +16,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+
+enum class SortType {
+    FOLDER_FIRST,
+    CARD_FIRST,
+    UNSORTED,
+    BY_LABEL_ASC,
+    BY_LABEL_DESC,
+    BY_COLOR,
+    BY_USAGE
+}
 class MainViewModel : ViewModel() {
     private val database = Firebase.database.reference
-
+    private val _sortedItems = MutableStateFlow<List<Any>>(emptyList())
     // Data States
     private val _cards = MutableStateFlow<List<Card>>(emptyList())
     private val _folders = MutableStateFlow<List<Folder>>(emptyList())
@@ -32,7 +42,14 @@ class MainViewModel : ViewModel() {
     val selectedCards = _selectedCards.asStateFlow()
     val isDeleteMode = _isDeleteMode.asStateFlow()
     val itemsToDelete = _itemsToDelete.asStateFlow()
+    val sortedItems = _sortedItems.asStateFlow()
 
+    private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
+    private enum class ItemOrder {
+        FOLDER_FIRST,
+        CARD_FIRST,
+        UNSORTED
+    }
 
     init {
         loadCards()
@@ -79,47 +96,161 @@ class MainViewModel : ViewModel() {
         database.child("cards")
             .orderByChild("order")
             .addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                _cards.value = snapshot.children.mapNotNull { it.getValue(Card::class.java) }
-            }
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    _cards.value = snapshot.children.mapNotNull { it.getValue(Card::class.java) }
+                    updateSortedItems() // Add this
+                }
 
-            override fun onCancelled(error: DatabaseError) {
-                // Handle error
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    // Handle error
+                }
+            })
     }
 
     private fun loadFolders() {
         database.child("folders")
-            .orderByChild("folders")
+            .orderByChild("order")
             .addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                _folders.value = snapshot.children.mapNotNull { it.getValue(Folder::class.java) }
-            }
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    _folders.value = snapshot.children.mapNotNull { it.getValue(Folder::class.java) }
+                    updateSortedItems() // Add this
+                }
 
-            override fun onCancelled(error: DatabaseError) {
-                // Handle error
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    // Handle error
+                }
+            })
     }
 
-    private fun updateItemOrder(item: Any, newOrder: Int) {
-        when (item) {
-            is Folder -> {
-                database.child("folders")
-                    .child(item.id)
-                    .child("order")
-                    .setValue(newOrder)
-            }
-            is Card -> {
-                database.child("cards")
-                    .child(item.id)
-                    .child("order")
-                    .setValue(newOrder)
+    // Add this new function
+    private fun updateSortedItems() {
+        val allItems = mutableListOf<Any>()
+        allItems.addAll(_folders.value)
+        allItems.addAll(_cards.value.filter { it.folderId.isEmpty() })
+
+        // Apply current sorting if any
+        when (itemOrderPreference.value) {
+            ItemOrder.FOLDER_FIRST -> allItems.sortBy { it !is Folder }
+            ItemOrder.CARD_FIRST -> allItems.sortBy { it !is Card }
+            ItemOrder.UNSORTED -> {} // No sorting needed
+        }
+
+        _sortedItems.value = allItems
+    }
+
+
+
+
+    fun sortItems(sortType: SortType) = viewModelScope.launch {
+        val allItems = mutableListOf<Any>()
+        allItems.addAll(_folders.value)
+        allItems.addAll(_cards.value.filter { it.folderId.isEmpty() })
+
+        // Update item order preference if sorting by card/folder
+        when (sortType) {
+            SortType.FOLDER_FIRST -> itemOrderPreference.value = ItemOrder.FOLDER_FIRST
+            SortType.CARD_FIRST -> itemOrderPreference.value = ItemOrder.CARD_FIRST
+            SortType.UNSORTED -> itemOrderPreference.value = ItemOrder.UNSORTED
+            else -> {} // Keep current preference
+        }
+
+        // First sort by type (if needed)
+        val typeOrderedItems = when (itemOrderPreference.value) {
+            ItemOrder.FOLDER_FIRST -> allItems.sortedBy { it !is Folder }
+            ItemOrder.CARD_FIRST -> allItems.sortedBy { it !is Card }
+            ItemOrder.UNSORTED -> allItems
+        }
+
+        // Then apply additional sorting criteria
+        val sortedItems = when (sortType) {
+            SortType.FOLDER_FIRST,
+            SortType.CARD_FIRST,
+            SortType.UNSORTED -> typeOrderedItems
+            SortType.BY_LABEL_ASC -> typeOrderedItems.sortedWith(
+                compareBy<Any> {
+                    // First sort by card/folder according to preference
+                    when (itemOrderPreference.value) {
+                        ItemOrder.FOLDER_FIRST -> if (it is Folder) 0 else 1
+                        ItemOrder.CARD_FIRST -> if (it is Card) 0 else 1
+                        ItemOrder.UNSORTED -> 0
+                    }
+                }.thenBy {
+                    // Then sort by label/name ignoring case
+                    when (it) {
+                        is Card -> it.label.lowercase()
+                        is Folder -> it.name.lowercase()
+                        else -> ""
+                    }
+                }
+            )
+            SortType.BY_LABEL_DESC -> typeOrderedItems.sortedWith(
+                compareBy<Any> {
+                    // First sort by card/folder according to preference
+                    when (itemOrderPreference.value) {
+                        ItemOrder.FOLDER_FIRST -> if (it is Folder) 0 else 1
+                        ItemOrder.CARD_FIRST -> if (it is Card) 0 else 1
+                        ItemOrder.UNSORTED -> 0
+                    }
+                }.thenByDescending {
+                    // Then sort by label/name ignoring case
+                    when (it) {
+                        is Card -> it.label.lowercase()
+                        is Folder -> it.name.lowercase()
+                        else -> ""
+                    }
+                }
+            )
+            SortType.BY_COLOR -> typeOrderedItems.sortedWith(
+                compareBy<Any> {
+                    when (itemOrderPreference.value) {
+                        ItemOrder.FOLDER_FIRST -> it !is Folder
+                        ItemOrder.CARD_FIRST -> it !is Card
+                        ItemOrder.UNSORTED -> false
+                    }
+                }.thenBy {
+                    when (it) {
+                        is Card -> it.color
+                        is Folder -> it.color
+                        else -> ""
+                    }
+                }
+            )
+            SortType.BY_USAGE -> typeOrderedItems.sortedWith(
+                compareBy<Any> {
+                    when (itemOrderPreference.value) {
+                        ItemOrder.FOLDER_FIRST -> it !is Folder
+                        ItemOrder.CARD_FIRST -> it !is Card
+                        ItemOrder.UNSORTED -> false
+                    }
+                }.thenBy {
+                    when (it) {
+                        is Card -> -it.usageCount
+                        else -> 0
+                    }
+                }
+            )
+        }
+
+        // Update Firebase order
+        sortedItems.forEachIndexed { index, item ->
+            when (item) {
+                is Folder -> {
+                    database.child("folders")
+                        .child(item.id)
+                        .child("order")
+                        .setValue(index)
+                }
+                is Card -> {
+                    database.child("cards")
+                        .child(item.id)
+                        .child("order")
+                        .setValue(index)
+                }
             }
         }
-    }
 
+        _sortedItems.value = sortedItems
+    }
     //Card Operation (Delete)
     fun toggleDeleteMode(enabled: Boolean) {
         _isDeleteMode.value = enabled
@@ -134,6 +265,7 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    // Also modify deleteSelectedItems to update UI immediately
     fun deleteSelectedItems() = viewModelScope.launch {
         try {
             _itemsToDelete.value.forEach { item ->
@@ -142,6 +274,8 @@ class MainViewModel : ViewModel() {
                     is Folder -> deleteFolder(item)
                 }
             }
+            // Update sorted items immediately after deletion
+            updateSortedItems()
         } finally {
             toggleDeleteMode(false)
         }

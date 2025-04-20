@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -48,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +64,8 @@ import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
+import com.example.ripdenver.viewmodels.MainViewModel
+import com.example.ripdenver.viewmodels.SortType
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
@@ -91,8 +95,31 @@ fun MainScreen(
     itemsToDelete: List<Any>,
     onToggleDeleteMode: (Boolean) -> Unit,
     onToggleItemForDeletion: (Any) -> Unit,
-    onDeleteSelectedItems: () -> Unit
+    onDeleteSelectedItems: () -> Unit,
+    mainViewModel: MainViewModel,
 ) {
+
+
+    val unassignedCards = cards.filter { it.folderId == null || it.folderId.isEmpty() }
+    val showDeleteConfirmation = remember { mutableStateOf(false)}
+    val isEditMode = remember { mutableStateOf(false) }
+    val items = remember { mutableStateListOf<Any>() }
+    val database = Firebase.database.reference
+    val showSortMenu = remember { mutableStateOf(false) }
+    val sortedItems = mainViewModel.sortedItems.collectAsState()
+
+    LaunchedEffect(sortedItems.value, folders, unassignedCards) {
+        if (sortedItems.value.isNotEmpty()) {
+            items.clear()
+            items.addAll(sortedItems.value)
+        } else {
+            items.clear()
+            items.addAll(folders)
+            items.addAll(unassignedCards)
+        }
+    }
+
+
     fun ReorderableLazyGridState.startDrag() {
         Log.d("DRAG_DEBUG", "Attempting to start drag programmatically")
         try {
@@ -106,20 +133,7 @@ fun MainScreen(
         }
     }
 
-    val unassignedCards = cards.filter { it.folderId == null || it.folderId.isEmpty() }
-    val showDeleteConfirmation = remember { mutableStateOf(false)}
-    val isEditMode = remember { mutableStateOf(false) }
-    val items = remember { mutableStateListOf<Any>() }
-    val database = Firebase.database.reference
 
-    LaunchedEffect(Unit) {
-        Log.d("DRAG_TEST", "Reorderable library initialized. Edit mode: ${isEditMode.value}")
-    }
-    LaunchedEffect(folders, unassignedCards) {
-        items.clear()
-        items.addAll(folders)
-        items.addAll(unassignedCards)
-    }
 
     val reorderableState = rememberReorderableLazyGridState(
         onMove = { from, to ->
@@ -178,11 +192,76 @@ fun MainScreen(
                         Icon(Icons.Default.Delete, "Delete")
                     }
                 } else if (isEditMode.value) {
+                    // Sort FAB
+                    FloatingActionButton(
+                        onClick = { showSortMenu.value = true },
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Sort, "Sort items")
+                    }
+                    // Cancel FAB
                     FloatingActionButton(
                         onClick = { isEditMode.value = false },
                         containerColor = MaterialTheme.colorScheme.error
                     ) {
                         Icon(Icons.Default.Close, "Cancel Edit")
+                    }
+
+                    if (showSortMenu.value) {
+                        DropdownMenu(
+                            expanded = showSortMenu.value,
+                            onDismissRequest = { showSortMenu.value = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Folder First") },
+                                onClick = {
+                                    mainViewModel.sortItems(SortType.FOLDER_FIRST)
+                                    showSortMenu.value = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Card First") },
+                                onClick = {
+                                    mainViewModel.sortItems(SortType.CARD_FIRST)
+                                    showSortMenu.value = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Unsorted") },
+                                onClick = {
+                                    mainViewModel.sortItems(SortType.UNSORTED)
+                                    showSortMenu.value = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("By Label (A-Z)") },
+                                onClick = {
+                                    mainViewModel.sortItems(SortType.BY_LABEL_ASC)
+                                    showSortMenu.value = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("By Label (Z-A)") },
+                                onClick = {
+                                    mainViewModel.sortItems(SortType.BY_LABEL_DESC)
+                                    showSortMenu.value = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("By Color") },
+                                onClick = {
+                                    mainViewModel.sortItems(SortType.BY_COLOR)
+                                    showSortMenu.value = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("By Usage") },
+                                onClick = {
+                                    mainViewModel.sortItems(SortType.BY_USAGE)
+                                    showSortMenu.value = false
+                                }
+                            )
+                        }
                     }
                 } else {
                     ControlButtons(

@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
                             itemsToDelete = itemsToDelete,
                             onToggleItemForDeletion = { mainViewModel.toggleItemForDeletion(it) },
                             onDeleteSelectedItems = { mainViewModel.deleteSelectedItems() },
+                            mainViewModel = mainViewModel,
                             navController = navController
                         )
                     }
