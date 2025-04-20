@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -135,247 +137,276 @@ fun AddModuleScreen(
                 }
             )
         }
-
     ) { padding ->
-        Column(
+        Row(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(scrollState)
+                .horizontalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // CARD PREVIEW ==============================
-            if (uiState.isCardSelected) {
+            // LEFT SIDE: PREVIEW AND SAVE BUTTON ==============================
+            Column(
+                modifier = Modifier
+                    .padding(end = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // PREVIEW (CARD OR FOLDER)
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.0f))
                         .padding(16.dp)
                         .clickable { onPreviewClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Card(
-                        modifier = Modifier
-                            .size(130.dp)
-                            .aspectRatio(1f)
-                            .border(
-                                width = 1.dp,
-                                color = Color(android.graphics.Color.parseColor(uiState.cardColor)),
-                                shape = MaterialTheme.shapes.medium
-                            ),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(android.graphics.Color.parseColor(uiState.cardColor)).copy(alpha = 0.5f)
-                        )
-                    ) {
-                        Box(
+                    if (uiState.isCardSelected) {
+                        // CARD PREVIEW
+                        Card(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color(android.graphics.Color.parseColor(uiState.cardColor)).copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                if (imageUri != null) {
-                                    AsyncImage(
-                                        model = imageUri,
-                                        contentDescription = "Preview image",
-                                        modifier = Modifier.size(80.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Image,
-                                        contentDescription = "No image",
-                                        modifier = Modifier.size(48.dp),
-                                        tint = Color.White
-                                    )
-                                }
-                                Text(
-                                    text = uiState.cardLabel.ifEmpty { "Pangalan" },
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(top = 8.dp)
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Image",
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .size(24.dp)
-                                    .clickable { onPreviewClick() },
-                                tint = Color.White.copy(alpha = 0.8f)
+                                .size(180.dp)
+                                .aspectRatio(1f)
+                                .border(
+                                    width = 1.dp,
+                                    color = Color(android.graphics.Color.parseColor(uiState.cardColor)),
+                                    shape = MaterialTheme.shapes.medium
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(android.graphics.Color.parseColor(uiState.cardColor)).copy(alpha = 0.5f)
                             )
-                        }
-                    }
-                }
-            }
-            if (showImageSourceDialog) {
-                ImageSourceDialog(
-                    onDismiss = { showImageSourceDialog = false },
-                    onSymbolSelected = {
-                        showImageSourceDialog = false
-                        showSymbolSearchDialog = true
-                    },
-                    onGallerySelected = {
-                        showImageSourceDialog = false
-                        imagePickerLauncher.launch("image/*")
-                    }
-                )
-            }
-
-            // Symbol Search Dialog
-            if (showSymbolSearchDialog) {
-                SymbolSearchDialog(
-                    viewModel = viewModel,
-                    onDismiss = { showSymbolSearchDialog = false },
-                    onSymbolSelected = { imageUrl ->
-                        onSymbolSelected(imageUrl)
-                        showSymbolSearchDialog = false
-                    }
-                )
-            }
-
-            // Radio buttons for Card/Folder selection
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = uiState.isCardSelected,
-                        onClick = { viewModel.selectCardType(true) }
-                    )
-                    Text("Kard", modifier = Modifier.padding(start = 8.dp))
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = !uiState.isCardSelected,
-                        onClick = { viewModel.selectCardType(false) }
-                    )
-                    Text("Folder", modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (uiState.isCardSelected) {
-                // Card Fields
-                OutlinedTextField(
-                    value = uiState.cardLabel,
-                    onValueChange = { viewModel.updateCardLabel(it) },
-                    label = { Text("Pangalan") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = uiState.cardVocalization,
-                    onValueChange = { viewModel.updateCardVocalization(it) },
-                    label = { Text("Pagbigkas") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Color Picker
-                Text(
-                    text = "Mga Kulay",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                ColorSelectionRow(
-                    selectedColor = uiState.cardColor,
-                    onColorSelected = { viewModel.updateCardColor(it) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-
-            } else {
-                // Folder Fields (unchanged)
-                OutlinedTextField(
-                    value = uiState.folderLabel,
-                    onValueChange = { viewModel.updateFolderLabel(it) },
-                    label = { Text("Pangalan ng Folder") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Mga Kulay",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                ColorSelectionRow(
-                    selectedColor = uiState.folderColor,
-                    onColorSelected = { viewModel.updateFolderColor(it) }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-
-                // Folder image picker (if needed)
-                // Similar implementation as card image picker
-            }
-            Button(
-                onClick = {
-                    scope.launch {
-                        isLoading = true
-                        if (uiState.isCardSelected) {
-                            // If a symbol was selected
-                            selectedSymbolUrl?.let { imageUrl ->
-                                viewModel.handleSymbolSelection(
-                                    context = context,
-                                    imageUrl = imageUrl,
-                                    onSuccess = { urlAndPublicId ->
-                                        // After upload, save the card
-                                        viewModel.saveCard {
-                                            isLoading = false
-                                            onSaveComplete()
-                                        }
-                                    },
-                                    onError = { error ->
-                                        errorMessage = error
-                                        isLoading = false
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(android.graphics.Color.parseColor(uiState.cardColor)).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    if (imageUri != null) {
+                                        AsyncImage(
+                                            model = imageUri,
+                                            contentDescription = "Preview image",
+                                            modifier = Modifier.size(100.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Image,
+                                            contentDescription = "No image",
+                                            modifier = Modifier.size(64.dp),
+                                            tint = Color.White
+                                        )
                                     }
-                                )
-                            } ?: run {
-                                // No image selected, just save
-                                viewModel.saveCard {
-                                    isLoading = false
-                                    onSaveComplete()
+                                    Text(
+                                        text = uiState.cardLabel.ifEmpty { "Pangalan" },
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = Color.Black,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
                                 }
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Image",
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(24.dp)
+                                        .clickable { onPreviewClick() },
+                                    tint = Color.White.copy(alpha = 0.8f)
+                                )
                             }
-                        } else {
-                            viewModel.saveFolder()
-                            isLoading = false
-                            onSaveComplete()
+                        }
+                    } else {
+                        // FOLDER PREVIEW
+                        Card(
+                            modifier = Modifier
+                                .size(180.dp)
+                                .aspectRatio(1f)
+                                .border(
+                                    width = 1.dp,
+                                    color = Color(android.graphics.Color.parseColor(uiState.folderColor)),
+                                    shape = MaterialTheme.shapes.medium
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(android.graphics.Color.parseColor(uiState.folderColor)).copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(android.graphics.Color.parseColor(uiState.folderColor)).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = uiState.folderLabel.ifEmpty { "Pangalan ng Folder" },
+                                    style = MaterialTheme.typography.titleLarge,
+                                    textAlign = TextAlign.Center,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                            }
                         }
                     }
-                },
-                modifier = Modifier
-                    .padding(2.dp)
-                    .align(Alignment.CenterHorizontally),
-                enabled = !isLoading && when {
-                    uiState.isCardSelected -> uiState.cardLabel.isNotBlank()
-                    else -> uiState.folderLabel.isNotBlank()
                 }
+
+                // SAVE BUTTON under the preview
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isLoading = true
+                            if (uiState.isCardSelected) {
+                                selectedSymbolUrl?.let { imageUrl ->
+                                    viewModel.handleSymbolSelection(
+                                        context = context,
+                                        imageUrl = imageUrl,
+                                        onSuccess = { urlAndPublicId ->
+                                            viewModel.saveCard {
+                                                isLoading = false
+                                                onSaveComplete()
+                                            }
+                                        },
+                                        onError = { error ->
+                                            errorMessage = error
+                                            isLoading = false
+                                        }
+                                    )
+                                } ?: run {
+                                    viewModel.saveCard {
+                                        isLoading = false
+                                        onSaveComplete()
+                                    }
+                                }
+                            } else {
+                                viewModel.saveFolder()
+                                isLoading = false
+                                onSaveComplete()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .padding(top = 16.dp),
+                    enabled = !isLoading && when {
+                        uiState.isCardSelected -> uiState.cardLabel.isNotBlank()
+                        else -> uiState.folderLabel.isNotBlank()
+                    }
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Save")
+                    }
+                }
+            }
+
+            // RIGHT SIDE: FORM FIELDS ==============================
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(scrollState)
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
+                // Radio buttons for Card/Folder selection
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = uiState.isCardSelected,
+                            onClick = { viewModel.selectCardType(true) }
+                        )
+                        Text("Kard", modifier = Modifier.padding(start = 8.dp, end = 16.dp))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = !uiState.isCardSelected,
+                            onClick = { viewModel.selectCardType(false) }
+                        )
+                        Text("Folder", modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+
+                if (uiState.isCardSelected) {
+                    // Card Fields
+                    OutlinedTextField(
+                        value = uiState.cardLabel,
+                        onValueChange = { viewModel.updateCardLabel(it) },
+                        label = { Text("Pangalan") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = uiState.cardVocalization,
+                        onValueChange = { viewModel.updateCardVocalization(it) },
+                        label = { Text("Pagbigkas") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    )
+
+                    // Color Picker
+                    Text(
+                        text = "Mga Kulay",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 5.dp, bottom = 4.dp)
+                    )
+                    ColorSelectionRow(
+                        selectedColor = uiState.cardColor,
+                        onColorSelected = { viewModel.updateCardColor(it) }
                     )
                 } else {
-                    Text("Save")
+                    // Folder Fields
+                    OutlinedTextField(
+                        value = uiState.folderLabel,
+                        onValueChange = { viewModel.updateFolderLabel(it) },
+                        label = { Text("Pangalan ng Folder") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    )
+
+                    Text(
+                        text = "Mga Kulay",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                    )
+                    ColorSelectionRow(
+                        selectedColor = uiState.folderColor,
+                        onColorSelected = { viewModel.updateFolderColor(it) }
+                    )
                 }
             }
         }
 
+        // Dialogs
+        if (showImageSourceDialog) {
+            ImageSourceDialog(
+                onDismiss = { showImageSourceDialog = false },
+                onSymbolSelected = {
+                    showImageSourceDialog = false
+                    showSymbolSearchDialog = true
+                },
+                onGallerySelected = {
+                    showImageSourceDialog = false
+                    imagePickerLauncher.launch("image/*")
+                }
+            )
+        }
+
+        if (showSymbolSearchDialog) {
+            SymbolSearchDialog(
+                viewModel = viewModel,
+                onDismiss = { showSymbolSearchDialog = false },
+                onSymbolSelected = { imageUrl ->
+                    onSymbolSelected(imageUrl)
+                    showSymbolSearchDialog = false
+                }
+            )
+        }
     }
 }
 
@@ -403,7 +434,7 @@ private fun ColorSelectionRow(
         colors.forEach { (hex, _) ->
             Box(
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(25.dp)
                     .background(
                         color = Color(android.graphics.Color.parseColor(hex)),
                         shape = CircleShape
