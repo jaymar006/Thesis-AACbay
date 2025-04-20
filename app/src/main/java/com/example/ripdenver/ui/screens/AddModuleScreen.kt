@@ -121,7 +121,6 @@ fun AddModuleScreen(
     ) { uri: Uri? ->
         uri?.let {
             imageUri = it
-            // Don't update the path yet - we'll do it after Cloudinary upload
         }
     }
 
@@ -213,122 +212,29 @@ fun AddModuleScreen(
                 }
             }
             if (showImageSourceDialog) {
-                AlertDialog(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.CenterHorizontally),
-                    onDismissRequest = { showImageSourceDialog = false },
-                    title = { Text("") },
-                    text = {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .width(600.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    showImageSourceDialog = false
-                                    showSymbolSearchDialog = true
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Pumili ng Simbolo")
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = {
-                                    showImageSourceDialog = false
-                                    imagePickerLauncher.launch("image/*")
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Pumili mula sa Gallery")
-                            }
-                        }
+                ImageSourceDialog(
+                    onDismiss = { showImageSourceDialog = false },
+                    onSymbolSelected = {
+                        showImageSourceDialog = false
+                        showSymbolSearchDialog = true
                     },
-                    confirmButton = {
-                        TextButton(
-                            onClick = { showImageSourceDialog = false }
-                        ) {
-                            Text("Cancel")
-                        }
+                    onGallerySelected = {
+                        showImageSourceDialog = false
+                        imagePickerLauncher.launch("image/*")
                     }
                 )
             }
 
             // Symbol Search Dialog
             if (showSymbolSearchDialog) {
-                var searchQuery by remember { mutableStateOf("") }
-
-                CustomDialog(onDismissRequest = { showSymbolSearchDialog = false }) {
-                    Column(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Pumili ng Simbolo",
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-
-                        // Search field
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { query ->
-                                searchQuery = query
-                                viewModel.searchPictograms(query)
-                            },
-                            label = { Text("Search Symbols(english)") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                        )
-
-                        if (viewModel.isLoadingPictograms) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        } else if (searchQuery.isNotEmpty() && viewModel.pictograms.isEmpty()) {
-                            Column(
-                                modifier = Modifier
-                                    .height(500.dp)
-                                    .fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Text(
-                                    text = "Walang resulta para sa '${searchQuery}' :(",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(3),
-                                modifier = Modifier
-                                    .height(500.dp)
-                                    .fillMaxWidth()
-                            ) {
-                                items(viewModel.pictograms.size) { index ->
-                                    val pictogram = viewModel.pictograms[index]
-                                    PictogramItem(
-                                        pictogram = pictogram,
-                                        onClick = {
-                                            onSymbolSelected(pictogram.getImageUrl(500))
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { showSymbolSearchDialog = false },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Cancel")
-                        }
+                SymbolSearchDialog(
+                    viewModel = viewModel,
+                    onDismiss = { showSymbolSearchDialog = false },
+                    onSymbolSelected = { imageUrl ->
+                        onSymbolSelected(imageUrl)
+                        showSymbolSearchDialog = false
                     }
-                }
+                )
             }
 
             // Radio buttons for Card/Folder selection
@@ -553,3 +459,107 @@ fun CustomDialog(
     }
 }
 
+@Composable
+fun ImageSourceDialog(
+    onDismiss: () -> Unit,
+    onSymbolSelected: () -> Unit,
+    onGallerySelected: () -> Unit
+) {
+    AlertDialog(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        onDismissRequest = onDismiss,
+        title = { Text("") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .width(600.dp)
+            ) {
+                Button(
+                    onClick = onSymbolSelected,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Pumili ng Simbolo")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onGallerySelected,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Pumili mula sa Gallery")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+@Composable
+fun SymbolSearchDialog(
+    viewModel: AddModuleViewModel,
+    onDismiss: () -> Unit,
+    onSymbolSelected: (String) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+
+    CustomDialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+        ) {
+            Text(
+                text = "Pumili ng Simbolo",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { query ->
+                    searchQuery = query
+                    viewModel.searchPictograms(query)
+                },
+                label = { Text("Search Symbols(english)") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
+
+            if (viewModel.isLoadingPictograms) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .height(500.dp)
+                        .fillMaxWidth()
+                ) {
+                    items(viewModel.pictograms.size) { index ->
+                        val pictogram = viewModel.pictograms[index]
+                        PictogramItem(
+                            pictogram = pictogram,
+                            onClick = {
+                                onSymbolSelected(pictogram.getImageUrl(500))
+                                onDismiss()
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Cancel")
+            }
+        }
+    }
+}
