@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -56,7 +55,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -70,7 +68,6 @@ import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.ReorderableLazyGridState
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyGridState
 import org.burnoutcrew.reorderable.reorderable
@@ -89,6 +86,8 @@ fun MainScreen(
     onClearSelection: () -> Unit,
     onRemoveLastSelection: () -> Unit,
     navController: NavController,
+    isEditMode: Boolean,
+    onToggleEditMode: (Boolean) -> Unit,
     gridColumns: Int = 6,
     isGridColumn: Boolean = true,
     isDeleteMode: Boolean,
@@ -100,9 +99,8 @@ fun MainScreen(
 ) {
 
 
-    val unassignedCards = cards.filter { it.folderId == null || it.folderId.isEmpty() }
+    val unassignedCards = cards.filter { it.folderId.isEmpty() }
     val showDeleteConfirmation = remember { mutableStateOf(false)}
-    val isEditMode = remember { mutableStateOf(false) }
     val items = remember { mutableStateListOf<Any>() }
     val database = Firebase.database.reference
     val showSortMenu = remember { mutableStateOf(false) }
@@ -120,31 +118,15 @@ fun MainScreen(
     }
 
 
-    fun ReorderableLazyGridState.startDrag() {
-        Log.d("DRAG_DEBUG", "Attempting to start drag programmatically")
-        try {
-            val method = this::class.java.getDeclaredMethod("startDrag")
-            method.isAccessible = true
-            method.invoke(this)
-            Log.d("DRAG_DEBUG", "Successfully started drag")
-        } catch (e: Exception) {
-            Log.e("DRAG_DEBUG", "Failed to start drag", e)
-            e.printStackTrace()
-        }
-    }
-
-
-
     val reorderableState = rememberReorderableLazyGridState(
         onMove = { from, to ->
-            Log.d("DRAG_DEBUG", "Attempting to move item from ${from.index} to ${to.index}")
             items.apply {
                 val item = this[from.index]
                 removeAt(from.index)
                 add(to.index, item)
 
                 // Update orders in Firebase after reordering
-                items.forEachIndexed { index, item ->
+                forEachIndexed { index, item ->
                     when (item) {
                         is Folder -> {
                             database.child("folders")
@@ -161,14 +143,10 @@ fun MainScreen(
                     }
                 }
             }
-        },
-        canDragOver = { draggedOver, dragging ->
-            val canDrag = isEditMode.value
-            Log.d("DRAG_DEBUG", "Can drag check: isEditMode = $canDrag")
-            Log.d("DRAG_DEBUG", "Dragged item: $dragging, Target item: $draggedOver")
-            canDrag
         }
     )
+
+
     Scaffold(
         floatingActionButton = {
             Row(
@@ -191,7 +169,7 @@ fun MainScreen(
                     ) {
                         Icon(Icons.Default.Delete, "Delete")
                     }
-                } else if (isEditMode.value) {
+                } else if (isEditMode) {
                     // Sort FAB
                     FloatingActionButton(
                         onClick = { showSortMenu.value = true },
@@ -201,7 +179,7 @@ fun MainScreen(
                     }
                     // Cancel FAB
                     FloatingActionButton(
-                        onClick = { isEditMode.value = false },
+                        onClick = { onToggleEditMode(false) },
                         containerColor = MaterialTheme.colorScheme.error
                     ) {
                         Icon(Icons.Default.Close, "Cancel Edit")
@@ -283,19 +261,18 @@ fun MainScreen(
                     onClearAll = onClearSelection,
                     onAddClick = onAddClick,
                     onToggleDeleteMode = onToggleDeleteMode,
-                    onToggleEditMode = {
-                        Log.d("MainScreen", "Edit mode set to: $it")
-                        isEditMode.value = it
-                    }
+                    onToggleEditMode = onToggleEditMode,  // Update this
+                    isEditMode = isEditMode
                 )
 
                 LazyVerticalGrid(
-                    columns = if(isGridColumn) GridCells.Fixed(gridColumns) else GridCells.Adaptive(minSize = 150.dp),
-                    state = reorderableState.gridState,
+                    columns = GridCells.Adaptive(minSize = 150.dp),
                     modifier = Modifier
                         .weight(1f)
                         .reorderable(reorderableState)
                         .detectReorderAfterLongPress(reorderableState)
+                        .padding(8.dp),
+                    state = reorderableState.gridState
                 ) {
                     items(
                         items = items,
@@ -307,52 +284,39 @@ fun MainScreen(
                             }
                         }
                     ) { item ->
-                        ReorderableItem(
-                            reorderableState = reorderableState,
-                            key = item
-                        ) { isDragging ->
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        if (isDragging) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                                        else Color.Transparent,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                            ) {
-                                when (item) {
-                                    is Folder -> FolderListItem(
-                                        folder = item,
-                                        isEditMode = isEditMode.value,
-                                        isDeleteMode = isDeleteMode,
-                                        isSelected = item in itemsToDelete,
-                                        isDragging = isDragging,
-                                        onClick = {
-                                            if (isDeleteMode) onToggleItemForDeletion(item)
-                                            else if (isEditMode.value) {
-                                                // Handle edit click
-                                            } else {
-                                                onFolderClick(item)
-                                            }
-                                        },
-                                        onToggleDelete = { onToggleItemForDeletion(item) }
-                                    )
-                                    is Card -> CardListItem(
-                                        card = item,
-                                        isEditMode = isEditMode.value,
-                                        isDeleteMode = isDeleteMode,
-                                        isSelected = item in itemsToDelete,
-                                        isDragging = isDragging,
-                                        onClick = {
-                                            if (isDeleteMode) onToggleItemForDeletion(item)
-                                            else if (isEditMode.value) {
-                                                // Handle edit click
-                                            } else {
-                                                onCardClick(item)
-                                            }
-                                        },
-                                        onToggleDelete = { onToggleItemForDeletion(item) }
-                                    )
-                                }
+                        val isDragging = remember { mutableStateOf(false) }
+                        ReorderableItem(reorderableState = reorderableState, key = item) { isDragging ->
+                            when (item) {
+                                is Card -> CardListItem(
+                                    card = item,
+                                    isEditMode = isEditMode,
+                                    isDeleteMode = isDeleteMode,
+                                    isSelected = item in itemsToDelete,
+                                    isDragging = isDragging,
+                                    onClick = {
+                                        when {
+                                            isDeleteMode -> onToggleItemForDeletion(item)
+                                            isEditMode -> Unit // Do nothing in edit mode
+                                            else -> onCardClick(item)
+                                        }
+                                    },
+                                    onToggleDelete = { onToggleItemForDeletion(item) }
+                                )
+                                is Folder -> FolderListItem(
+                                    folder = item,
+                                    isEditMode = isEditMode,
+                                    isDeleteMode = isDeleteMode,
+                                    isSelected = item in itemsToDelete,
+                                    isDragging = isDragging,
+                                    onClick = {
+                                        when {
+                                            isDeleteMode -> onToggleItemForDeletion(item)
+                                            isEditMode -> Unit // Do nothing in edit mode
+                                            else -> onFolderClick(item)
+                                        }
+                                    },
+                                    onToggleDelete = { onToggleItemForDeletion(item) }
+                                )
                             }
                         }
                     }
@@ -399,6 +363,7 @@ fun SelectionContainer(
     onAddClick: () -> Unit,
     onToggleDeleteMode: (Boolean) -> Unit,
     onToggleEditMode: (Boolean) -> Unit,
+    isEditMode: Boolean,
     currentFolderId: String? = null,
     modifier: Modifier = Modifier
 ) {

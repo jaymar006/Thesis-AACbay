@@ -48,6 +48,8 @@ fun FolderScreen(
     onClearOne: () -> Unit,
     onClearAll: () -> Unit,
     onToggleDeleteMode: (Boolean) -> Unit,
+    isEditMode: Boolean = false,
+    onToggleEditMode: (Boolean) -> Unit = {},
     navController: NavController,
     isDeleteMode: Boolean,
     itemsToDelete: List<Any>,
@@ -85,9 +87,8 @@ fun FolderScreen(
                     onAddClick = onAddClick,
                     currentFolderId = folder.id,
                     onToggleDeleteMode = onToggleDeleteMode,
-                    onToggleEditMode = { isEditMode ->
-                        onToggleDeleteMode(isEditMode)
-                    },
+                    onToggleEditMode = onToggleEditMode,
+                    isEditMode = isEditMode
                 )
 
                 LazyVerticalGrid(

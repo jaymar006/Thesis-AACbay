@@ -35,6 +35,7 @@ class MainViewModel : ViewModel() {
     private val _selectedCards = MutableStateFlow<List<Card>>(emptyList()) // Card lang pare
     private val _isDeleteMode = MutableStateFlow(false)
     private val _itemsToDelete = MutableStateFlow<List<Any>>(emptyList())
+    private val _isEditMode = MutableStateFlow(false)
 
 
     val cards = _cards.asStateFlow()
@@ -43,6 +44,8 @@ class MainViewModel : ViewModel() {
     val isDeleteMode = _isDeleteMode.asStateFlow()
     val itemsToDelete = _itemsToDelete.asStateFlow()
     val sortedItems = _sortedItems.asStateFlow()
+    val isEditMode = _isEditMode.asStateFlow()
+
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
     private enum class ItemOrder {
@@ -56,7 +59,12 @@ class MainViewModel : ViewModel() {
         loadFolders()
     }
 
-
+    fun toggleEditMode(enabled: Boolean) {
+        _isEditMode.value = enabled
+        if (!enabled) {
+            // Reset any edit-related state if needed
+        }
+    }
 
     // Selection Management
     fun addToSelection(card: Card) {

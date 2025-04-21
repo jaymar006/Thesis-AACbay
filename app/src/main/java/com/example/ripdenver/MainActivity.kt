@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
                     composable("main") {
                         val isDeleteMode by mainViewModel.isDeleteMode.collectAsState()
                         val itemsToDelete by mainViewModel.itemsToDelete.collectAsState()
+                        val isEditMode by mainViewModel.isEditMode.collectAsState()
                         MainScreen(
                             cards = cards,
                             folders = folders,
@@ -60,6 +61,8 @@ class MainActivity : ComponentActivity() {
                             onRemoveLastSelection = { mainViewModel.removeLastSelection() },
                             onToggleDeleteMode = { mainViewModel.toggleDeleteMode(it) },
                             isDeleteMode = isDeleteMode,
+                            isEditMode = isEditMode,
+                            onToggleEditMode = { mainViewModel.toggleEditMode(it) },
                             itemsToDelete = itemsToDelete,
                             onToggleItemForDeletion = { mainViewModel.toggleItemForDeletion(it) },
                             onDeleteSelectedItems = { mainViewModel.deleteSelectedItems() },

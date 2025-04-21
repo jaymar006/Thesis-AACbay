@@ -118,7 +118,7 @@ fun CardItem(
 
                 Text(
                     text = card.label.split(" ").joinToString(" ") { word ->
-                        if (word == "I") word else word.lowercase()
+                        if (word == "Ako") word else word.lowercase()
                     },
                     modifier = Modifier.padding(2.dp),
                     color = Color.Black,
