@@ -40,6 +40,9 @@ class EditCardViewModel : ViewModel() {
     var isLoadingPictograms by mutableStateOf(false)
         private set
 
+    private var _selectedImageUrl = MutableStateFlow<String?>(null)
+    val selectedImageUrl: StateFlow<String?> = _selectedImageUrl.asStateFlow()
+
     private var searchJob: Job? = null
     private val searchDelay = 500L // 500ms delay for debouncing
 
@@ -60,7 +63,7 @@ class EditCardViewModel : ViewModel() {
     // Arasaac API client
     private val arasaacApi: ArasaacApiService by lazy {
         Retrofit.Builder()
-            .baseUrl("https://api.arasaac.org/api/")
+            .baseUrl("https://api.arasaac.org/") // Changed base URL
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ArasaacApiService::class.java)
@@ -141,19 +144,24 @@ class EditCardViewModel : ViewModel() {
         }
     }
 
-    fun updateCard(onComplete: () -> Unit) {
+    suspend fun updateCard(context: Context, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
+                // Upload image if a new one was selected
+                val urlAndId = _selectedImageUrl.value?.let { url ->
+                    uploadArasaacImage(context, url)
+                } ?: uiState.value.cardImagePath
+
                 val card = uiState.value.run {
                     Card(
                         id = cardId,
                         label = cardLabel,
                         vocalization = cardVocalization,
                         color = cardColor,
-                        cloudinaryUrl = cardImagePath.first,
-                        cloudinaryPublicId = cardImagePath.second,
+                        cloudinaryUrl = urlAndId.first,
+                        cloudinaryPublicId = urlAndId.second,
                         folderId = folderId,
-                        usageCount = 0, // This should be retrieved from the original card
+                        usageCount = 0,
                         lastUsed = System.currentTimeMillis()
                     )
                 }
@@ -164,6 +172,8 @@ class EditCardViewModel : ViewModel() {
                     .setValue(card)
                     .await()
 
+                // Clear selected image URL
+                _selectedImageUrl.value = null
                 onComplete()
             } catch (e: Exception) {
                 e.printStackTrace()
