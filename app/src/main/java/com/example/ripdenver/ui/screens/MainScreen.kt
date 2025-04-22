@@ -46,7 +46,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -62,9 +61,9 @@ import androidx.navigation.NavController
 import com.example.ripdenver.AACbayApplication
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
+import com.example.ripdenver.models.Ngram
 import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
-import com.example.ripdenver.utils.TTSManager
 import com.example.ripdenver.viewmodels.MainViewModel
 import com.example.ripdenver.viewmodels.SortType
 import com.google.firebase.database.ktx.database
@@ -376,6 +375,7 @@ fun SelectionContainer(
     val tts = remember {
         (context.applicationContext as AACbayApplication).ttsManager
     }
+    val database = Firebase.database.reference
 
 
     LaunchedEffect(selectedItems.size) {
@@ -391,16 +391,53 @@ fun SelectionContainer(
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 5.dp)
             .clickable {
-                Log.d("SelectionContainer", "Container clicked with ${selectedItems.size} items")
-                // Speak first item with QUEUE_FLUSH
+                // Update usage for all selected cards
+                selectedItems.forEach { card ->
+                    val cardRef = database.child("cards").child(card.id)
+
+                    // First get the current value from database
+                    cardRef.get().addOnSuccessListener { snapshot ->
+                        val currentUsageCount = snapshot.child("usageCount").getValue(Int::class.java) ?: 0
+
+                        cardRef.updateChildren(
+                            mapOf(
+                                "usageCount" to (currentUsageCount + 1),
+                                "lastUsed" to System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+
+                // Create bigrams if there are 2 or more cards
+                if (selectedItems.size >= 2) {
+                    for (i in 0 until selectedItems.size - 1) {
+                        val pair = listOf(selectedItems[i].id, selectedItems[i + 1].id)
+                        val ngramHash = pair.joinToString("_")
+
+                        // Update or create bigram
+                        val ngramRef = database.child("ngrams").child(ngramHash)
+                        ngramRef.get().addOnSuccessListener { snapshot ->
+                            val existing = snapshot.getValue(Ngram::class.java)
+                            val updated = if (existing != null) {
+                                existing.increment()
+                            } else {
+                                Ngram(
+                                    sequence = pair,
+                                    sequenceHash = ngramHash
+                                )
+                            }
+                            ngramRef.setValue(updated)
+                        }
+                    }
+                }
+
+                // Speak text (existing TTS logic)
                 selectedItems.firstOrNull()?.let { firstCard ->
                     val firstText = firstCard.vocalization.ifEmpty { firstCard.label }
                     tts.speak(firstText)
                 }
-                // Queue remaining items with QUEUE_ADD
                 selectedItems.drop(1).forEach { card ->
                     val textToSpeak = card.vocalization.ifEmpty { card.label }
-                    Log.d("SelectionContainer", "Queuing text: $textToSpeak")
                     tts.speakQueued(textToSpeak)
                 }
             },
