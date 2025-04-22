@@ -411,7 +411,7 @@ fun AddModuleScreen(
 }
 
 @Composable
-private fun ColorSelectionRow(
+public fun ColorSelectionRow(
     selectedColor: String,
     onColorSelected: (String) -> Unit
 ) {

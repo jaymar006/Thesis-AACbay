@@ -296,7 +296,7 @@ fun MainScreen(
                                     onClick = {
                                         when {
                                             isDeleteMode -> onToggleItemForDeletion(item)
-                                            isEditMode -> Unit // Do nothing in edit mode
+                                            isEditMode -> navController.navigate("edit_card/${item.id}")
                                             else -> onCardClick(item)
                                         }
                                     },
@@ -311,7 +311,7 @@ fun MainScreen(
                                     onClick = {
                                         when {
                                             isDeleteMode -> onToggleItemForDeletion(item)
-                                            isEditMode -> Unit // Do nothing in edit mode
+                                            isEditMode -> navController.navigate("edit_folder/${item.id}")
                                             else -> onFolderClick(item)
                                         }
                                     },

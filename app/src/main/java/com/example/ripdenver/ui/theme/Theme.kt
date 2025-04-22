@@ -33,6 +33,22 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+
+val availableColors = listOf(
+    "#FF0000", // Red
+    "#FFA500", // Orange
+    "#FFFF00", // Yellow
+    "#008000", // Green
+    "#0000FF", // Blue
+    "#4B0082", // Indigo
+    "#9400D3", // Violet
+    "#FF69B4", // Pink
+    "#A52A2A", // Brown
+    "#808080", // Gray
+    "#FFFFFF", // White
+    "#000000"  // Black
+)
+
 @Composable
 fun RIPDenverTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

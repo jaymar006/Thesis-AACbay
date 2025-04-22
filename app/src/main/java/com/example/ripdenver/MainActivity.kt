@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -13,13 +14,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.ripdenver.ui.screens.AddModuleScreen
+import com.example.ripdenver.ui.screens.EditCardScreen
+import com.example.ripdenver.ui.screens.EditFolderScreen
 import com.example.ripdenver.ui.screens.FolderScreen
 import com.example.ripdenver.ui.screens.MainScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,6 +122,30 @@ class MainActivity : ComponentActivity() {
                             onSaveComplete = {
                                 navController.popBackStack()
                             }
+                        )
+                    }
+
+                    composable(
+                        route = "edit_card/{cardId}",
+                        arguments = listOf(navArgument("cardId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val cardId = backStackEntry.arguments?.getString("cardId") ?: return@composable
+                        EditCardScreen(
+                            navController = navController,
+                            viewModel = hiltViewModel(),
+                            cardId = cardId
+                        )
+                    }
+
+                    composable(
+                        route = "edit_folder/{folderId}",
+                        arguments = listOf(navArgument("folderId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val folderId = backStackEntry.arguments?.getString("folderId") ?: return@composable
+                        EditFolderScreen(
+                            navController = navController,
+                            viewModel = hiltViewModel(),
+                            folderId = folderId
                         )
                     }
                 }
