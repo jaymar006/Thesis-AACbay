@@ -41,7 +41,6 @@ class EditCardViewModel : ViewModel() {
         private set
 
     private var _selectedImageUrl = MutableStateFlow<String?>(null)
-    val selectedImageUrl: StateFlow<String?> = _selectedImageUrl.asStateFlow()
 
     private var searchJob: Job? = null
     private val searchDelay = 500L // 500ms delay for debouncing
@@ -144,7 +143,7 @@ class EditCardViewModel : ViewModel() {
         }
     }
 
-    suspend fun updateCard(context: Context, onComplete: () -> Unit) {
+    fun updateCard(context: Context, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
                 // Upload image if a new one was selected
@@ -179,10 +178,6 @@ class EditCardViewModel : ViewModel() {
                 e.printStackTrace()
             }
         }
-    }
-
-    suspend fun uploadImageAndGetUrl(context: Context, uri: Uri): Pair<String, String> {
-        return CloudinaryManager.uploadImage(context, uri)
     }
 
     private suspend fun downloadImage(context: Context, imageUrl: String): File {

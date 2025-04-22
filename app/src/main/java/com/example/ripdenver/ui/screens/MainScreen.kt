@@ -6,7 +6,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +46,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -56,12 +56,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.ripdenver.AACbayApplication
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
+import com.example.ripdenver.utils.TTSManager
 import com.example.ripdenver.viewmodels.MainViewModel
 import com.example.ripdenver.viewmodels.SortType
 import com.google.firebase.database.ktx.database
@@ -369,7 +372,10 @@ fun SelectionContainer(
 ) {
     val showDropdownMenu = remember { mutableStateOf(false) }
     val lazyListState: LazyListState = rememberLazyListState()
-
+    val context = LocalContext.current
+    val tts = remember {
+        (context.applicationContext as AACbayApplication).ttsManager
+    }
 
 
     LaunchedEffect(selectedItems.size) {
@@ -383,7 +389,21 @@ fun SelectionContainer(
             .fillMaxWidth()
             .height(80.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 5.dp),
+            .padding(horizontal = 5.dp)
+            .clickable {
+                Log.d("SelectionContainer", "Container clicked with ${selectedItems.size} items")
+                // Speak first item with QUEUE_FLUSH
+                selectedItems.firstOrNull()?.let { firstCard ->
+                    val firstText = firstCard.vocalization.ifEmpty { firstCard.label }
+                    tts.speak(firstText)
+                }
+                // Queue remaining items with QUEUE_ADD
+                selectedItems.drop(1).forEach { card ->
+                    val textToSpeak = card.vocalization.ifEmpty { card.label }
+                    Log.d("SelectionContainer", "Queuing text: $textToSpeak")
+                    tts.speakQueued(textToSpeak)
+                }
+            },
         verticalAlignment = Alignment.CenterVertically
     )  {
         // Scrollable selected items
@@ -532,11 +552,6 @@ fun EditableItem(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = MaterialTheme.shapes.medium
-                    )
             )
         }
     }
