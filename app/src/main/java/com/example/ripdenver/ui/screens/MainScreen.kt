@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -73,7 +74,6 @@ import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyGridState
 import org.burnoutcrew.reorderable.reorderable
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -265,6 +265,12 @@ fun MainScreen(
                     onToggleDeleteMode = onToggleDeleteMode,
                     onToggleEditMode = onToggleEditMode,  // Update this
                     isEditMode = isEditMode
+                )
+
+                PredictiveContainer(
+                    selectedCards = selectedCards,
+                    onCardClick = onCardClick,
+                    mainViewModel = mainViewModel // Pass the ViewModel
                 )
 
                 LazyVerticalGrid(
@@ -705,6 +711,60 @@ private fun FolderListItem(
                 onCheckedChange = { onToggleDelete() },
                 modifier = Modifier.align(Alignment.TopEnd)
             )
+        }
+    }
+}
+
+@Composable
+fun PredictiveContainer(
+    selectedCards: List<Card>,
+    onCardClick: (Card) -> Unit,
+    modifier: Modifier = Modifier,
+    mainViewModel: MainViewModel
+) {
+    val predictedCards = mainViewModel.predictedCards.collectAsState().value
+
+    // Add logging
+    LaunchedEffect(selectedCards) {
+        android.util.Log.d("PredictiveContainer", "Selected cards: ${selectedCards.map { it.id }}")
+        mainViewModel.predictNextCards(selectedCards)
+    }
+
+    // Log predictions
+    LaunchedEffect(predictedCards) {
+        android.util.Log.d("PredictiveContainer", "Predicted cards: ${predictedCards.map { it.id }}")
+    }
+
+    if (selectedCards.isNotEmpty() && predictedCards.isNotEmpty()) {
+        val lazyListState = rememberLazyListState()
+
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                .padding(horizontal = 5.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .height(80.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                LazyRow(
+                    state = lazyListState,
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(predictedCards) { card ->
+                        CardItem(
+                            card = card,
+                            onClick = { onCardClick(card) },
+                            modifier = Modifier.size(60.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }

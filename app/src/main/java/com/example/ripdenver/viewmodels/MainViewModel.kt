@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
+import com.example.ripdenver.models.Ngram
 import com.example.ripdenver.utils.CloudinaryManager
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -30,6 +31,7 @@ class MainViewModel : ViewModel() {
     private val database = Firebase.database.reference
 
     // Data States
+    private val _predictedCards = MutableStateFlow<List<Card>>(emptyList())
     private val _cards = MutableStateFlow<List<Card>>(emptyList())
     private val _folders = MutableStateFlow<List<Folder>>(emptyList())
     private val _selectedCards = MutableStateFlow<List<Card>>(emptyList()) // Card lang pare
@@ -49,6 +51,7 @@ class MainViewModel : ViewModel() {
     val sortedItems = _sortedItems.asStateFlow()
     val isEditMode = _isEditMode.asStateFlow()
     val lastSortType = _lastSortType.asStateFlow()
+    val predictedCards = _predictedCards.asStateFlow()
 
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
@@ -62,6 +65,63 @@ class MainViewModel : ViewModel() {
         loadCards()
         loadFolders()
     }
+
+    // Predict the next card
+    fun predictNextCards(selectedCards: List<Card>) {
+        viewModelScope.launch {
+            android.util.Log.d("MainViewModel", "predictNextCards called with ${selectedCards.size} cards")
+            if (selectedCards.isEmpty()) {
+                android.util.Log.d("MainViewModel", "No cards selected, returning empty predictions")
+                _predictedCards.value = emptyList()
+                return@launch
+            }
+
+            val lastCardId = selectedCards.last().id
+            android.util.Log.d("MainViewModel", "Looking for predictions after card: $lastCardId")
+
+            Firebase.database.reference
+                .child("ngrams")
+                .orderByChild("sequenceHash")
+                .startAt("${lastCardId}_")
+                .endAt("${lastCardId}_\uf8ff")
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    android.util.Log.d("MainViewModel", "Query successful, exists: ${snapshot.exists()}")
+                    android.util.Log.d("MainViewModel", "Found ${snapshot.childrenCount} n-grams")
+
+                    val predictedCardIds = mutableSetOf<String>()
+                    snapshot.children.forEach { ngramSnapshot ->
+                        val ngram = ngramSnapshot.getValue(Ngram::class.java)
+                        android.util.Log.d("MainViewModel", "N-gram: $ngram")
+
+                        // Get the second card ID from the sequence
+                        ngram?.sequence?.getOrNull(1)?.let { nextCardId ->
+                            android.util.Log.d("MainViewModel", "Adding predicted card ID: $nextCardId")
+                            predictedCardIds.add(nextCardId)
+                        }
+                    }
+
+                    // Convert IDs to cards and sort by frequency
+                    val predictions = predictedCardIds
+                        .mapNotNull { id -> cards.value.find { it.id == id } }
+                        .sortedByDescending { card ->
+                            snapshot.children
+                                .firstOrNull {
+                                    it.getValue(Ngram::class.java)?.sequence?.get(1) == card.id
+                                }
+                                ?.getValue(Ngram::class.java)
+                                ?.frequency ?: 0
+                        }
+
+                    android.util.Log.d("MainViewModel", "Final predictions: ${predictions.map { it.id }}")
+                    _predictedCards.value = predictions
+                }
+                .addOnFailureListener { exception ->
+                    android.util.Log.e("MainViewModel", "Query failed", exception)
+                }
+        }
+    }
+
 
     fun toggleEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
