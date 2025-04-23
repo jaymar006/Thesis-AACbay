@@ -55,12 +55,14 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.ripdenver.viewmodels.EditCardViewModel
+import com.example.ripdenver.viewmodels.MainViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditCardScreen(
     navController: NavController,
+    mainViewModel: MainViewModel,
     viewModel: EditCardViewModel,
     cardId: String
 ) {
@@ -139,18 +141,21 @@ fun EditCardScreen(
                                         coroutineScope.launch {
                                             viewModel.updateCard(context) {
                                                 isLoading = false
+                                                mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                                 navController.popBackStack()
                                             }
                                         }
                                     },
                                     onError = { error ->
                                         errorMessage = error
+                                        mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                         isLoading = false
                                     }
                                 )
                             } ?: run {
                                 viewModel.updateCard(context) {
                                     isLoading = false
+                                    mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                     navController.popBackStack()
                                 }
                             }

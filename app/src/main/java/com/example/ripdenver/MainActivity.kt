@@ -117,6 +117,7 @@ class MainActivity : ComponentActivity() {
 
                         AddModuleScreen(
                             viewModel = addModuleViewModel,
+                            mainViewModel = mainViewModel,
                             folderId = folderId,  // Pass the folderId to AddModuleScreen
                             onBack = { navController.popBackStack() },
                             onSaveComplete = {
@@ -132,6 +133,7 @@ class MainActivity : ComponentActivity() {
                         val cardId = backStackEntry.arguments?.getString("cardId") ?: return@composable
                         EditCardScreen(
                             navController = navController,
+                            mainViewModel = mainViewModel,
                             viewModel = hiltViewModel(),
                             cardId = cardId
                         )

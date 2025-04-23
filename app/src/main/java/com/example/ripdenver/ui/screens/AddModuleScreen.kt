@@ -66,11 +66,13 @@ import coil.compose.AsyncImage
 import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import kotlinx.coroutines.launch
+import com.example.ripdenver.viewmodels.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddModuleScreen(
     viewModel: AddModuleViewModel = viewModel(),
+    mainViewModel: MainViewModel,
     folderId: String = "",
     onBack: () -> Unit,
     onSaveComplete: () -> Unit
@@ -261,6 +263,7 @@ fun AddModuleScreen(
                                         onSuccess = { urlAndPublicId ->
                                             viewModel.saveCard {
                                                 isLoading = false
+                                                mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                                 onSaveComplete()
                                             }
                                         },
@@ -272,12 +275,14 @@ fun AddModuleScreen(
                                 } ?: run {
                                     viewModel.saveCard {
                                         isLoading = false
+                                        mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                         onSaveComplete()
                                     }
                                 }
                             } else {
                                 viewModel.saveFolder()
                                 isLoading = false
+                                mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                 onSaveComplete()
                             }
                         }

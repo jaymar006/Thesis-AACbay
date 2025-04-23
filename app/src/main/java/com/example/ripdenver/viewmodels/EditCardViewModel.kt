@@ -223,6 +223,12 @@ class EditCardViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             try {
+                // First delete the old image if it exists
+                if (uiState.value.cardImagePath.second.isNotEmpty()) {
+                    CloudinaryManager.deleteImage(uiState.value.cardImagePath.second)
+                }
+
+                // Then upload the new image
                 val urlAndId = uploadArasaacImage(context, imageUrl)
                 updateCardImage(urlAndId)
                 onSuccess(urlAndId)

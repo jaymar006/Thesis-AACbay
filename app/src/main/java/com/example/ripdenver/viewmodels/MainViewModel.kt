@@ -28,7 +28,7 @@ enum class SortType {
 }
 class MainViewModel : ViewModel() {
     private val database = Firebase.database.reference
-    private val _sortedItems = MutableStateFlow<List<Any>>(emptyList())
+
     // Data States
     private val _cards = MutableStateFlow<List<Card>>(emptyList())
     private val _folders = MutableStateFlow<List<Folder>>(emptyList())
@@ -36,6 +36,9 @@ class MainViewModel : ViewModel() {
     private val _isDeleteMode = MutableStateFlow(false)
     private val _itemsToDelete = MutableStateFlow<List<Any>>(emptyList())
     private val _isEditMode = MutableStateFlow(false)
+    private val _sortedItems = MutableStateFlow<List<Any>>(emptyList())
+    private val _lastSortType = MutableStateFlow(SortType.UNSORTED)
+
 
 
     val cards = _cards.asStateFlow()
@@ -45,6 +48,7 @@ class MainViewModel : ViewModel() {
     val itemsToDelete = _itemsToDelete.asStateFlow()
     val sortedItems = _sortedItems.asStateFlow()
     val isEditMode = _isEditMode.asStateFlow()
+    val lastSortType = _lastSortType.asStateFlow()
 
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
@@ -150,6 +154,7 @@ class MainViewModel : ViewModel() {
 
 
     fun sortItems(sortType: SortType) = viewModelScope.launch {
+        _lastSortType.value = sortType
         val allItems = mutableListOf<Any>()
         allItems.addAll(_folders.value)
         allItems.addAll(_cards.value.filter { it.folderId.isEmpty() })
