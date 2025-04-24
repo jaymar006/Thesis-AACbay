@@ -65,8 +65,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.viewmodels.AddModuleViewModel
-import kotlinx.coroutines.launch
 import com.example.ripdenver.viewmodels.MainViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -313,23 +313,25 @@ fun AddModuleScreen(
                     .verticalScroll(scrollState)
             ) {
                 // Radio buttons for Card/Folder selection
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = uiState.isCardSelected,
-                            onClick = { viewModel.selectCardType(true) }
-                        )
-                        Text("Kard", modifier = Modifier.padding(start = 8.dp, end = 16.dp))
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(
-                            selected = !uiState.isCardSelected,
-                            onClick = { viewModel.selectCardType(false) }
-                        )
-                        Text("Folder", modifier = Modifier.padding(start = 8.dp))
+                if (folderId.isEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = uiState.isCardSelected,
+                                onClick = { viewModel.selectCardType(true) }
+                            )
+                            Text("Kard", modifier = Modifier.padding(start = 8.dp, end = 16.dp))
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = !uiState.isCardSelected,
+                                onClick = { viewModel.selectCardType(false) }
+                            )
+                            Text("Folder", modifier = Modifier.padding(start = 8.dp))
+                        }
                     }
                 }
 
