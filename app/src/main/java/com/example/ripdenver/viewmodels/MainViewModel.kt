@@ -40,6 +40,7 @@ class MainViewModel : ViewModel() {
     private val _isEditMode = MutableStateFlow(false)
     private val _sortedItems = MutableStateFlow<List<Any>>(emptyList())
     private val _lastSortType = MutableStateFlow(SortType.UNSORTED)
+    private val _isOffline = MutableStateFlow(false)
 
 
 
@@ -52,6 +53,7 @@ class MainViewModel : ViewModel() {
     val isEditMode = _isEditMode.asStateFlow()
     val lastSortType = _lastSortType.asStateFlow()
     val predictedCards = _predictedCards.asStateFlow()
+    val isOffline = _isOffline.asStateFlow()
 
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
@@ -64,6 +66,26 @@ class MainViewModel : ViewModel() {
     init {
         loadCards()
         loadFolders()
+    }
+    // Check if online :>
+    fun checkConnectivity() {
+        viewModelScope.launch {
+            try {
+                Firebase.database.reference.child(".info/connected")
+                    .addValueEventListener(object : ValueEventListener {
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            val isConnected = snapshot.getValue(Boolean::class.java) ?: false
+                            _isOffline.value = !isConnected
+                        }
+
+                        override fun onCancelled(error: DatabaseError) {
+                            _isOffline.value = true
+                        }
+                    })
+            } catch (e: Exception) {
+                _isOffline.value = true
+            }
+        }
     }
 
     // Predict the next card

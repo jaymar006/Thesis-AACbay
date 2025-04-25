@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -31,9 +33,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -107,6 +112,11 @@ fun MainScreen(
     val database = Firebase.database.reference
     val showSortMenu = remember { mutableStateOf(false) }
     val sortedItems = mainViewModel.sortedItems.collectAsState()
+    val isOffline = mainViewModel.isOffline.collectAsState().value
+
+    LaunchedEffect(Unit) {
+        mainViewModel.checkConnectivity()
+    }
 
     LaunchedEffect(sortedItems.value, folders, unassignedCards) {
         if (sortedItems.value.isNotEmpty()) {
@@ -244,10 +254,12 @@ fun MainScreen(
                         }
                     }
                 } else {
-                    ControlButtons(
-                        onMicClick = onMicClick,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (!isOffline) {
+                        ControlButtons(
+                            onMicClick = onMicClick,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
@@ -256,7 +268,13 @@ fun MainScreen(
             .padding(padding)
             .fillMaxSize()
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            if (isOffline) {
+                RetryButton(
+                    onClick = { mainViewModel.checkConnectivity() },
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
                 SelectionContainer(
                     selectedItems = selectedCards,
                     onClearOne = onRemoveLastSelection,
@@ -293,7 +311,10 @@ fun MainScreen(
                         }
                     ) { item ->
                         val isDragging = remember { mutableStateOf(false) }
-                        ReorderableItem(reorderableState = reorderableState, key = item) { isDragging ->
+                        ReorderableItem(
+                            reorderableState = reorderableState,
+                            key = item
+                        ) { isDragging ->
                             when (item) {
                                 is Card -> CardListItem(
                                     card = item,
@@ -310,6 +331,7 @@ fun MainScreen(
                                     },
                                     onToggleDelete = { onToggleItemForDeletion(item) }
                                 )
+
                                 is Folder -> FolderListItem(
                                     folder = item,
                                     isEditMode = isEditMode,
@@ -331,6 +353,7 @@ fun MainScreen(
                 }
 
             }
+        }
             if (showDeleteConfirmation.value) {
                 AlertDialog(
                     onDismissRequest = { showDeleteConfirmation.value = false },
@@ -601,7 +624,7 @@ fun EditableItem(
 }
 
 @Composable
-private fun CardListItem(
+fun CardListItem(
     card: Card,
     isEditMode: Boolean,
     isDeleteMode: Boolean,
@@ -765,6 +788,39 @@ fun PredictiveContainer(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun RetryButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Walang koneksyon sa internet",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = onClick,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = "Retry",
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Subukang muli")
         }
     }
 }
