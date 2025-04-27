@@ -8,7 +8,7 @@ import java.util.Locale
 class TTSManager private constructor(context: Context) {
     private var textToSpeech: TextToSpeech? = null
     private var isInitialized = false
-    private val speechRateSlower = 0.8f // Adjust for clearer pronunciation
+    private val speechRateSlower = 1f // Adjust for clearer pronunciation
 
     init {
         Log.d("TTSManager", "Initializing TTS")

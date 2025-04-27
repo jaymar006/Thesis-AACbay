@@ -23,6 +23,7 @@ import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.example.ripdenver.ui.screens.RecordingScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -148,6 +149,12 @@ class MainActivity : ComponentActivity() {
                             navController = navController,
                             viewModel = hiltViewModel(),
                             folderId = folderId
+                        )
+                    }
+
+                    composable("recording") {
+                        RecordingScreen(
+                            onDismiss = { navController.popBackStack() }
                         )
                     }
                 }
