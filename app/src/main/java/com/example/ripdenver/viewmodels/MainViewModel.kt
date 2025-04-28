@@ -1,5 +1,6 @@
 package com.example.ripdenver.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ripdenver.models.Card
@@ -55,6 +56,10 @@ class MainViewModel : ViewModel() {
     val predictedCards = _predictedCards.asStateFlow()
     val isOffline = _isOffline.asStateFlow()
 
+    private val _columnCount = MutableStateFlow(6)
+    val columnCount = _columnCount.asStateFlow()
+
+
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
     private enum class ItemOrder {
@@ -66,6 +71,7 @@ class MainViewModel : ViewModel() {
     init {
         loadCards()
         loadFolders()
+        observeGridSettings()
     }
     // Check if online :>
     fun checkConnectivity() {
@@ -87,6 +93,22 @@ class MainViewModel : ViewModel() {
             }
         }
     }
+
+    private fun observeGridSettings() {
+        Firebase.database.reference.child("settings")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    snapshot.child("columnCount").getValue(Int::class.java)?.let {
+                        _columnCount.value = it
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e("MainViewModel", "Failed to load grid settings", error.toException())
+                }
+            })
+    }
+
 
     // Predict the next card
     fun predictNextCards(selectedCards: List<Card>) {

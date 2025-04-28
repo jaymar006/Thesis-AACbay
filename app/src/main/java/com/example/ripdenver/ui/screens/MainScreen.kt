@@ -1,17 +1,11 @@
 package com.example.ripdenver.ui.screens
 
-import android.content.Intent
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,9 +25,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
@@ -51,8 +45,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,14 +62,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.NavController
 import com.example.ripdenver.AACbayApplication
 import com.example.ripdenver.models.Card
@@ -108,8 +97,6 @@ fun MainScreen(
     navController: NavController,
     isEditMode: Boolean,
     onToggleEditMode: (Boolean) -> Unit,
-    gridColumns: Int = 6,
-    isGridColumn: Boolean = true,
     isDeleteMode: Boolean,
     itemsToDelete: List<Any>,
     onToggleDeleteMode: (Boolean) -> Unit,
@@ -126,6 +113,7 @@ fun MainScreen(
     val showSortMenu = remember { mutableStateOf(false) }
     val sortedItems = mainViewModel.sortedItems.collectAsState()
     val isOffline = mainViewModel.isOffline.collectAsState().value
+    val currentColumnCount = mainViewModel.columnCount.collectAsState().value
 
     LaunchedEffect(Unit) {
         mainViewModel.checkConnectivity()
@@ -174,10 +162,16 @@ fun MainScreen(
 
     Scaffold(
         floatingActionButton = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (isDeleteMode) {
+            if (!isDeleteMode && !isEditMode && !isOffline) {
+                ControlButtons(
+                    navController = navController,
+                    onMicClick = onMicClick,
+                    modifier = Modifier
+                )
+            } else if (isDeleteMode) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     FloatingActionButton(
                         onClick = { onToggleDeleteMode(false) },
                         containerColor = MaterialTheme.colorScheme.error
@@ -194,7 +188,11 @@ fun MainScreen(
                     ) {
                         Icon(Icons.Default.Delete, "Delete")
                     }
-                } else if (isEditMode) {
+                }
+            } else if (isEditMode) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     // Sort FAB
                     FloatingActionButton(
                         onClick = { showSortMenu.value = true },
@@ -266,17 +264,10 @@ fun MainScreen(
                             )
                         }
                     }
-                } else {
-                    if (!isOffline) {
-                        ControlButtons(
-                            navController = navController,
-                            onMicClick = onMicClick,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
                 }
             }
-        }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { padding ->
         Box(modifier = Modifier
             .padding(padding)
@@ -289,86 +280,87 @@ fun MainScreen(
                 )
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                SelectionContainer(
-                    selectedItems = selectedCards,
-                    onClearOne = onRemoveLastSelection,
-                    onClearAll = onClearSelection,
-                    onAddClick = onAddClick,
-                    onToggleDeleteMode = onToggleDeleteMode,
-                    onToggleEditMode = onToggleEditMode,  // Update this
-                    isEditMode = isEditMode,
-                    navController = navController
-                )
+                    SelectionContainer(
+                        selectedItems = selectedCards,
+                        onClearOne = onRemoveLastSelection,
+                        onClearAll = onClearSelection,
+                        onAddClick = onAddClick,
+                        onToggleDeleteMode = onToggleDeleteMode,
+                        onToggleEditMode = onToggleEditMode,
+                        isEditMode = isEditMode,
+                        navController = navController
+                    )
 
-                PredictiveContainer(
-                    selectedCards = selectedCards,
-                    onCardClick = onCardClick,
-                    mainViewModel = mainViewModel // Pass the ViewModel
-                )
+                    PredictiveContainer(
+                        selectedCards = selectedCards,
+                        onCardClick = onCardClick,
+                        mainViewModel = mainViewModel
+                    )
 
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 150.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .reorderable(reorderableState)
-                        .detectReorderAfterLongPress(reorderableState)
-                        .padding(8.dp),
-                    state = reorderableState.gridState
-                ) {
-                    items(
-                        items = items,
-                        key = { item ->
-                            when (item) {
-                                is Folder -> "folder_${item.id}"
-                                is Card -> "card_${item.id}"
-                                else -> ""
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(currentColumnCount),
+                        modifier = Modifier
+                            .weight(1f)
+                            .reorderable(reorderableState)
+                            .detectReorderAfterLongPress(reorderableState)
+                            .padding(8.dp),
+                        state = reorderableState.gridState
+                    ) {
+
+                        items(
+                            items = items,
+                            key = { item ->
+                                when (item) {
+                                    is Folder -> "folder_${item.id}"
+                                    is Card -> "card_${item.id}"
+                                    else -> ""
+                                }
                             }
-                        }
-                    ) { item ->
-                        val isDragging = remember { mutableStateOf(false) }
-                        ReorderableItem(
-                            reorderableState = reorderableState,
-                            key = item
-                        ) { isDragging ->
-                            when (item) {
-                                is Card -> CardListItem(
-                                    card = item,
-                                    isEditMode = isEditMode,
-                                    isDeleteMode = isDeleteMode,
-                                    isSelected = item in itemsToDelete,
-                                    isDragging = isDragging,
-                                    onClick = {
-                                        when {
-                                            isDeleteMode -> onToggleItemForDeletion(item)
-                                            isEditMode -> navController.navigate("edit_card/${item.id}")
-                                            else -> onCardClick(item)
-                                        }
-                                    },
-                                    onToggleDelete = { onToggleItemForDeletion(item) }
-                                )
+                        ) { item ->
+                            val isDragging = remember { mutableStateOf(false) }
+                            ReorderableItem(
+                                reorderableState = reorderableState,
+                                key = item
+                            ) { isDragging ->
+                                when (item) {
+                                    is Card -> CardListItem(
+                                        card = item,
+                                        isEditMode = isEditMode,
+                                        isDeleteMode = isDeleteMode,
+                                        isSelected = item in itemsToDelete,
+                                        isDragging = isDragging,
+                                        onClick = {
+                                            when {
+                                                isDeleteMode -> onToggleItemForDeletion(item)
+                                                isEditMode -> navController.navigate("edit_card/${item.id}")
+                                                else -> onCardClick(item)
+                                            }
+                                        },
+                                        onToggleDelete = { onToggleItemForDeletion(item) }
+                                    )
 
-                                is Folder -> FolderListItem(
-                                    folder = item,
-                                    isEditMode = isEditMode,
-                                    isDeleteMode = isDeleteMode,
-                                    isSelected = item in itemsToDelete,
-                                    isDragging = isDragging,
-                                    onClick = {
-                                        when {
-                                            isDeleteMode -> onToggleItemForDeletion(item)
-                                            isEditMode -> navController.navigate("edit_folder/${item.id}")
-                                            else -> onFolderClick(item)
-                                        }
-                                    },
-                                    onToggleDelete = { onToggleItemForDeletion(item) }
-                                )
+                                    is Folder -> FolderListItem(
+                                        folder = item,
+                                        isEditMode = isEditMode,
+                                        isDeleteMode = isDeleteMode,
+                                        isSelected = item in itemsToDelete,
+                                        isDragging = isDragging,
+                                        onClick = {
+                                            when {
+                                                isDeleteMode -> onToggleItemForDeletion(item)
+                                                isEditMode -> navController.navigate("edit_folder/${item.id}")
+                                                else -> onFolderClick(item)
+                                            }
+                                        },
+                                        onToggleDelete = { onToggleItemForDeletion(item) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
-
             }
-        }
+
             if (showDeleteConfirmation.value) {
                 AlertDialog(
                     onDismissRequest = { showDeleteConfirmation.value = false },
@@ -393,10 +385,6 @@ fun MainScreen(
                     }
                 )
             }
-
-
-            // Floating buttons OVERLAY
-
         }
     }
 }
@@ -581,24 +569,16 @@ private fun SelectedCardItem(
 
 @Composable
 private fun ControlButtons(
-    navController: NavController,  // Add this parameter
+    navController: NavController,
     onMicClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+    FloatingActionButton(
+        onClick = { navController.navigate("recording") },
+        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+        contentColor = MaterialTheme.colorScheme.onPrimary
     ) {
-        FloatingActionButton(
-            onClick = { navController.navigate("recording") },  // Navigate to recording screen
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            Icon(Icons.Default.Mic, contentDescription = "Voice input")
-        }
+        Icon(Icons.Default.Mic, contentDescription = "Voice input")
     }
 }
 

@@ -8,9 +8,11 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
@@ -21,10 +23,10 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _columnCount = mutableStateOf(6)
     val columnCount: State<Int> = _columnCount
 
-    private val _rowCount = mutableStateOf(4)
-    val rowCount: State<Int> = _rowCount
 
     val appVersion = "1.0.0" // Replace with actual version
+
+
 
     fun incrementColumns() {
         if (_columnCount.value < 12) {
@@ -38,20 +40,24 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    fun incrementRows() {
-        if (_rowCount.value < 8) {
-            _rowCount.value++
-        }
-    }
-
-    fun decrementRows() {
-        if (_rowCount.value > 2) {
-            _rowCount.value--
-        }
-    }
 
     fun saveSettings() {
-        // Implement saving settings to SharedPreferences or Firebase
+        viewModelScope.launch {
+            Firebase.database.reference.child("settings").updateChildren(
+                mapOf(
+                    "columnCount" to _columnCount.value
+                )
+            )
+        }
+    }
+
+    init {
+        Firebase.database.reference.child("settings").get()
+            .addOnSuccessListener { snapshot ->
+                snapshot.child("columnCount").getValue(Int::class.java)?.let {
+                    _columnCount.value = it
+                }
+            }
     }
 
     fun exportDatabase(context: Context) {

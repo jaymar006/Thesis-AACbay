@@ -18,8 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.outlined.Dashboard
@@ -30,8 +30,8 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -81,10 +81,10 @@ fun SettingsScreen(
                 },
                 actions = {
                     IconButton(onClick = { viewModel.saveSettings() }) {
-                        Icon(Icons.Default.Save, "Save settings")
+                        Icon(Icons.Filled.Save, "Save settings")
                     }
                     IconButton(onClick = { showGuideDialog = true }) {
-                        Icon(Icons.Default.Help, "Guide")
+                        Icon(Icons.AutoMirrored.Filled.Help, "Guide")
                     }
                 }
             )
@@ -109,16 +109,6 @@ fun SettingsScreen(
                     value = viewModel.columnCount.value,
                     onDecrease = { viewModel.decrementColumns() },
                     onIncrease = { viewModel.incrementColumns() }
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                // Row Count
-                SettingsSliderRow(
-                    title = "Row Count",
-                    value = viewModel.rowCount.value,
-                    onDecrease = { viewModel.decrementRows() },
-                    onIncrease = { viewModel.incrementRows() }
                 )
             }
 
@@ -160,7 +150,7 @@ fun SettingsScreen(
                     }
                 }
 
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier.padding(vertical = 12.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
