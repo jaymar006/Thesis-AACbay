@@ -24,6 +24,7 @@ import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.ripdenver.ui.screens.RecordingScreen
+import com.example.ripdenver.ui.screens.SettingsScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -43,7 +44,7 @@ class MainActivity : ComponentActivity() {
                     navController = navController,
                     startDestination = "main"
                 ) {
-                    navController.enableOnBackPressed(true)
+                    navController.enableOnBackPressed(false)
 
                     composable("main") {
                         val isDeleteMode by mainViewModel.isDeleteMode.collectAsState()
@@ -155,6 +156,12 @@ class MainActivity : ComponentActivity() {
                     composable("recording") {
                         RecordingScreen(
                             onDismiss = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable("settings") {
+                        SettingsScreen(
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
                 }

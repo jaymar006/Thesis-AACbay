@@ -296,7 +296,8 @@ fun MainScreen(
                     onAddClick = onAddClick,
                     onToggleDeleteMode = onToggleDeleteMode,
                     onToggleEditMode = onToggleEditMode,  // Update this
-                    isEditMode = isEditMode
+                    isEditMode = isEditMode,
+                    navController = navController
                 )
 
                 PredictiveContainer(
@@ -410,7 +411,8 @@ fun SelectionContainer(
     onToggleEditMode: (Boolean) -> Unit,
     isEditMode: Boolean,
     currentFolderId: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navController: NavController,
 ) {
     val showDropdownMenu = remember { mutableStateOf(false) }
     val lazyListState: LazyListState = rememberLazyListState()
@@ -555,7 +557,7 @@ fun SelectionContainer(
             }
         }
 
-        IconButton(onClick = { /* Settings */ }) {
+        IconButton(onClick = { navController.navigate("settings") }) {
             Icon(Icons.Default.Settings, contentDescription = "Settings")
         }
     }

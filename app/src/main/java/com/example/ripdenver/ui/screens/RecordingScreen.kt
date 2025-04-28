@@ -1,10 +1,17 @@
 package com.example.ripdenver.ui.screens
 
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,8 +56,74 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ripdenver.viewmodels.RecordViewModel
+import android.provider.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+
+
+// Add this at the top level in RecordingScreen.kt
+@Composable
+fun LanguagePackPromptDialog(
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Kailangan ng Filipino Language Pack") },
+        text = {
+            Text(
+                """
+                Para sa mas magandang resulta ng voice recognition, kailangan i-install ang Filipino language pack.
+                
+                Gusto mo bang i-install ito ngayon?
+                
+                Sundin ang mga hakbang na ito:
+                1. Settings > System > Languages & input
+                2. I-tap ang "Add a language"
+                3. Piliin ang "Filipino (Pilipinas)"
+                4. I-restart ang app
+                """.trimIndent()
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onOpenSettings) {
+                Text("Buksan ang Settings")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Mamaya na lang")
+            }
+        }
+    )
+}
+
+// Add this function to check for Filipino language
+fun checkFilipinoPack(context: Context): Boolean {
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fil-PH")
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+    }
+
+    return try {
+        val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+        recognizer.startListening(intent)
+        recognizer.stopListening()
+        recognizer.destroy()
+        true
+    } catch (e: Exception) {
+        Log.d("LanguageCheck", "Filipino language not available: ${e.message}")
+        false
+    }
+}
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,39 +137,162 @@ fun RecordingScreen(
     val fontSize = viewModel.fontSize.value
     val fontColor = viewModel.fontColor.value
     val fontFamily = viewModel.fontFamily.value
+    val speechRecognizerState = remember { mutableStateOf<SpeechRecognizer?>(null) }
+    var showLanguagePrompt by remember { mutableStateOf(false) }
 
-    val speechRecognizer = remember {
+    LaunchedEffect(Unit) {
+        if (!checkFilipinoPack(context)) {
+            showLanguagePrompt = true
+        }
+    }
+
+    if (showLanguagePrompt) {
+        LanguagePackPromptDialog(
+            onDismiss = { showLanguagePrompt = false },
+            onOpenSettings = {
+                try {
+                    context.startActivity(Intent(Settings.ACTION_LOCALE_SETTINGS))
+                } catch (e: Exception) {
+                    Log.e("Settings", "Failed to open language settings", e)
+                }
+                showLanguagePrompt = false
+            }
+        )
+    }
+
+    var hasAudioPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasAudioPermission = isGranted
+    }
+
+
+    val createRecognizerIntent = {
+        val selectedLanguage = checkAndSetLanguage(context)
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, selectedLanguage)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 3000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+        }
+    }
+
+
+    val handleListening = remember {
+        { intent: Intent ->
+            try {
+                viewModel.setRecording(true)
+                speechRecognizerState.value?.startListening(intent)
+                Unit
+            } catch (e: Exception) {
+                viewModel.setRecording(false)
+                viewModel.setRecognizedText("Error: ${e.message}")
+            }
+        }
+    }
+
+    speechRecognizerState.value = remember {
         SpeechRecognizer.createSpeechRecognizer(context).apply {
             setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {}
-                override fun onBeginningOfSpeech() {}
-                override fun onRmsChanged(rmsdB: Float) {}
-                override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {
-                    viewModel.setRecording(false)
+                override fun onReadyForSpeech(params: Bundle?) {
+                    viewModel.setRecording(true)
                 }
+
+                override fun onBeginningOfSpeech() {}
+
+                override fun onRmsChanged(rmsdB: Float) {}
+
+                override fun onBufferReceived(buffer: ByteArray?) {}
+
+                override fun onEndOfSpeech() {}
+
                 override fun onError(error: Int) {
                     viewModel.setRecording(false)
+                    when (error) {
+                        SpeechRecognizer.ERROR_NO_MATCH -> {
+                            handleListening(createRecognizerIntent())
+                        }
+                        SpeechRecognizer.ERROR_AUDIO ->
+                            viewModel.setRecognizedText("Error sa audio recording")
+                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
+                            viewModel.setRecognizedText("Kailangan ng permiso")
+                        SpeechRecognizer.ERROR_NETWORK -> {
+                            Log.d("SpeechRecognizer", "Network error occurred")
+                            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                            val network = connectivityManager.activeNetwork
+                            val capabilities = connectivityManager.getNetworkCapabilities(network)
+                            val isConnected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+
+                            if (isConnected) {
+                                val fallbackToEnglish = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                }
+
+                                try {
+                                    // Show instruction message only initially
+                                    if (viewModel.recognizedText.value.isEmpty()) {
+                                        viewModel.setRecognizedText("Using English for speech recognition. Install Filipino language pack for better results.")
+                                    }
+                                    handleListening(fallbackToEnglish)
+                                } catch (e: Exception) {
+                                    viewModel.setRecognizedText("Pakiinstall muna ang Filipino language pack sa settings ng device.")
+                                }
+                            } else {
+                                viewModel.setRecognizedText("Walang internet connection")
+                            }
+                        }
+                        SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
+                            viewModel.setRecognizedText("Network timeout")
+                        SpeechRecognizer.ERROR_CLIENT ->
+                            handleListening(createRecognizerIntent())
+                        else ->
+                            viewModel.setRecognizedText("May error na nangyari: $error")
+                    }
                 }
+
                 override fun onResults(results: Bundle?) {
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    viewModel.setRecognizedText(matches?.get(0) ?: "")
+                    if (!matches.isNullOrEmpty()) {
+                        val existingText = if (viewModel.recognizedText.value.isNotEmpty()) {
+                            viewModel.recognizedText.value + " "
+                        } else ""
+                        viewModel.setRecognizedText(existingText + (matches[0] ?: ""))
+                        handleListening(createRecognizerIntent())
+                    }
                     viewModel.setRecording(false)
                 }
+
                 override fun onPartialResults(partialResults: Bundle?) {}
+
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
         }
     }
 
-    val startListening = {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fil-PH")
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+
+
+    val startListening = remember {
+        {
+            if (!hasAudioPermission) {
+                permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+            } else {
+                handleListening(createRecognizerIntent())
+            }
+            Unit
         }
-        speechRecognizer.startListening(intent)
-        viewModel.setRecording(true)
     }
 
     Scaffold(
@@ -121,12 +317,12 @@ fun RecordingScreen(
             fontColor = fontColor,
             fontFamily = fontFamily,
             onStartListening = startListening,
-            onStopListening = { speechRecognizer.stopListening() },
+            onStopListening = { speechRecognizerState.value?.stopListening() },
             onFontSizeChange = { viewModel.setFontSize(it) },
             onFontColorChange = { viewModel.setFontColor(it) },
             onFontFamilyChange = { viewModel.setFontFamily(it) },
             onDismiss = {
-                speechRecognizer.destroy()
+                speechRecognizerState.value?.destroy()
                 onDismiss()
             },
             modifier = Modifier.padding(padding)
@@ -135,6 +331,29 @@ fun RecordingScreen(
 
 }
 
+fun checkAndSetLanguage(context: Context): String {
+    return if (SpeechRecognizer.isRecognitionAvailable(context)) {
+        val locales = listOf("fil-PH", "en-US")
+        for (locale in locales) {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            }
+            try {
+                val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                recognizer.startListening(intent)
+                recognizer.stopListening()
+                recognizer.destroy()
+                return locale
+            } catch (e: Exception) {
+                Log.d("SpeechRecognizer", "Language $locale not available: ${e.message}")
+            }
+        }
+        "en-US" // Fallback to English if no other language works
+    } else {
+        "en-US"
+    }
+}
 @Composable
 private fun RecordingScreenContent(
     isRecording: Boolean,
