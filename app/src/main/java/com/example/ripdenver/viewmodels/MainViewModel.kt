@@ -83,8 +83,8 @@ class MainViewModel : ViewModel() {
                 Firebase.database.reference.child(".info/connected")
                     .addValueEventListener(object : ValueEventListener {
                         override fun onDataChange(snapshot: DataSnapshot) {
-                            val isConnected = snapshot.getValue(Boolean::class.java) ?: false
-                            _isOffline.value = !isConnected
+                            val connected = snapshot.getValue(Boolean::class.java) ?: false
+                            _isOffline.value = !connected
                         }
 
                         override fun onCancelled(error: DatabaseError) {

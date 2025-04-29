@@ -26,8 +26,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
@@ -275,10 +273,43 @@ fun MainScreen(
             .fillMaxSize()
         ) {
             if (isOffline) {
-                RetryButton(
-                    onClick = { mainViewModel.checkConnectivity() },
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    val rotation = remember { Animatable(0f) }
+
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            rotation.animateTo(
+                                targetValue = rotation.value + 360f,
+                                animationSpec = tween(
+                                    durationMillis = 1000,
+                                    easing = LinearEasing
+                                )
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Loading",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .graphicsLayer {
+                                rotationZ = rotation.value
+                            },
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Reconnecting...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
                     SelectionContainer(
