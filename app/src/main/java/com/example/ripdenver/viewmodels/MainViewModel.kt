@@ -60,6 +60,9 @@ class MainViewModel : ViewModel() {
     val columnCount = _columnCount.asStateFlow()
 
 
+    private val _showPredictions = MutableStateFlow(true)
+    val showPredictions = _showPredictions.asStateFlow()
+
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
     private enum class ItemOrder {
@@ -100,6 +103,9 @@ class MainViewModel : ViewModel() {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     snapshot.child("columnCount").getValue(Int::class.java)?.let {
                         _columnCount.value = it
+                    }
+                    snapshot.child("showPredictions").getValue(Boolean::class.java)?.let {
+                        _showPredictions.value = it
                     }
                 }
 

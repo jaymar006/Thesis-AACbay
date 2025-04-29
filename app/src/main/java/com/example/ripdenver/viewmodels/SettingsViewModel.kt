@@ -12,6 +12,8 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -20,23 +22,60 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor() : ViewModel() {
 
+    private val _hasUnsavedChanges = MutableStateFlow(false)
+    val hasUnsavedChanges = _hasUnsavedChanges.asStateFlow()
+
     private val _columnCount = mutableStateOf(6)
     val columnCount: State<Int> = _columnCount
 
 
     val appVersion = "1.0.0" // Replace with actual version
 
+    private val _showPredictions = mutableStateOf(true)
+    val showPredictions: State<Boolean> = _showPredictions
+
+    private var initialColumnCount = 6
+    private var initialShowPredictions = true
+
+    init {
+        Firebase.database.reference.child("settings").get()
+            .addOnSuccessListener { snapshot ->
+                snapshot.child("columnCount").getValue(Int::class.java)?.let {
+                    _columnCount.value = it
+                    initialColumnCount = it
+                }
+                snapshot.child("showPredictions").getValue(Boolean::class.java)?.let {
+                    _showPredictions.value = it
+                    initialShowPredictions = it
+                }
+            }
+    }
+
+    private fun checkForChanges() {
+        _hasUnsavedChanges.value = _columnCount.value != initialColumnCount ||
+                _showPredictions.value != initialShowPredictions
+    }
+
+
+    fun togglePredictions(enabled: Boolean) {
+        _showPredictions.value = enabled
+        checkForChanges()
+    }
+
+
 
 
     fun incrementColumns() {
         if (_columnCount.value < 12) {
             _columnCount.value++
+            checkForChanges()
         }
     }
 
     fun decrementColumns() {
         if (_columnCount.value > 2) {
             _columnCount.value--
+            checkForChanges()
         }
     }
 
@@ -45,20 +84,17 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             Firebase.database.reference.child("settings").updateChildren(
                 mapOf(
-                    "columnCount" to _columnCount.value
+                    "columnCount" to _columnCount.value,
+                    "showPredictions" to _showPredictions.value
                 )
             )
+            initialColumnCount = _columnCount.value
+            initialShowPredictions = _showPredictions.value
+            _hasUnsavedChanges.value = false
         }
     }
 
-    init {
-        Firebase.database.reference.child("settings").get()
-            .addOnSuccessListener { snapshot ->
-                snapshot.child("columnCount").getValue(Int::class.java)?.let {
-                    _columnCount.value = it
-                }
-            }
-    }
+
 
     fun exportDatabase(context: Context) {
         Firebase.database.reference.get()

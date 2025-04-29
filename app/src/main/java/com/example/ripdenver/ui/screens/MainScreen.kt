@@ -114,6 +114,7 @@ fun MainScreen(
     val sortedItems = mainViewModel.sortedItems.collectAsState()
     val isOffline = mainViewModel.isOffline.collectAsState().value
     val currentColumnCount = mainViewModel.columnCount.collectAsState().value
+    val showPredictions = mainViewModel.showPredictions.collectAsState().value
 
     LaunchedEffect(Unit) {
         mainViewModel.checkConnectivity()
@@ -291,11 +292,13 @@ fun MainScreen(
                         navController = navController
                     )
 
-                    PredictiveContainer(
-                        selectedCards = selectedCards,
-                        onCardClick = onCardClick,
-                        mainViewModel = mainViewModel
-                    )
+                    if (showPredictions) {
+                        PredictiveContainer(
+                            selectedCards = selectedCards,
+                            onCardClick = onCardClick,
+                            mainViewModel = mainViewModel
+                        )
+                    }
 
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(currentColumnCount),

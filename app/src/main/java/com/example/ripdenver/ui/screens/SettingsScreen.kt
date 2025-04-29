@@ -36,10 +36,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,10 +66,22 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+    val hasUnsavedChanges = viewModel.hasUnsavedChanges.collectAsState().value
+
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { viewModel.importDatabase(context, it) }
+    }
+
+
+    fun handleBackPress() {
+        if (hasUnsavedChanges) {
+            showUnsavedDialog = true
+        } else {
+            onNavigateBack()
+        }
     }
 
     Scaffold(
@@ -75,12 +89,17 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { handleBackPress() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.saveSettings() }) {
+                    IconButton(
+                        onClick = {
+                            viewModel.saveSettings()
+                            onNavigateBack()
+                        }
+                    ) {
                         Icon(Icons.Filled.Save, "Save settings")
                     }
                     IconButton(onClick = { showGuideDialog = true }) {
@@ -100,7 +119,7 @@ fun SettingsScreen(
         ) {
             // Board Layout Section
             SettingsSection(
-                title = "Board Layout",
+                title = "Board Settings",
                 icon = Icons.Outlined.Dashboard
             ) {
                 // Column Count
@@ -110,8 +129,33 @@ fun SettingsScreen(
                     onDecrease = { viewModel.decrementColumns() },
                     onIncrease = { viewModel.incrementColumns() }
                 )
-            }
 
+                // Show Predictions switch
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Prediction",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Ipakita ang mga mungkahing kard",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewModel.showPredictions.value,
+                        onCheckedChange = { viewModel.togglePredictions(it) }
+                    )
+                }
+            }
+            // Prediction Section
             // Data Section
             SettingsSection(
                 title = "Data Management",
@@ -227,6 +271,42 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showGuideDialog = false }) {
                     Text("Close")
+                }
+            }
+        )
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("May Hindi Na-save na Pagbabago") },
+            text = { Text("May hindi pa na-save na pagbabago. Gusto mo bang i-save muna?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.saveSettings()
+                        showUnsavedDialog = false
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("I-save")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(
+                        onClick = {
+                            showUnsavedDialog = false
+                            onNavigateBack()
+                        }
+                    ) {
+                        Text("Huwag I-save")
+                    }
+                    TextButton(
+                        onClick = { showUnsavedDialog = false }
+                    ) {
+                        Text("Kanselahin")
+                    }
                 }
             }
         )
