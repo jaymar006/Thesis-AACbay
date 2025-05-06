@@ -125,6 +125,7 @@ fun AddModuleScreen(
     ) { uri: Uri? ->
         uri?.let {
             imageUri = it
+            viewModel.setSelectedImageUri(it) // Add this line
         }
     }
 
@@ -256,12 +257,14 @@ fun AddModuleScreen(
                         scope.launch {
                             isLoading = true
                             if (uiState.isCardSelected) {
-                                selectedSymbolUrl?.let { imageUrl ->
+                                if (selectedSymbolUrl != null) {
+                                    // Handle symbol selection
                                     viewModel.handleSymbolSelection(
                                         context = context,
-                                        imageUrl = imageUrl,
+                                        imageUrl = selectedSymbolUrl!!,
                                         onSuccess = { urlAndPublicId ->
-                                            viewModel.saveCard {
+                                            viewModel.updateCardImage(urlAndPublicId)
+                                            viewModel.saveCard(context) {
                                                 isLoading = false
                                                 mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                                 onSaveComplete()
@@ -272,8 +275,9 @@ fun AddModuleScreen(
                                             isLoading = false
                                         }
                                     )
-                                } ?: run {
-                                    viewModel.saveCard {
+                                } else {
+                                    // Handle gallery image or direct save
+                                    viewModel.saveCard(context) {
                                         isLoading = false
                                         mainViewModel.sortItems(mainViewModel.lastSortType.value)
                                         onSaveComplete()

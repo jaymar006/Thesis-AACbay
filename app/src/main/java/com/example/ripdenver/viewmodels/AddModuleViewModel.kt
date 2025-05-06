@@ -44,6 +44,8 @@ class AddModuleViewModel : ViewModel() {
     private var searchJob: kotlinx.coroutines.Job? = null
     private val searchDelay = 500L // 500ms delay for debouncing
 
+    private val _selectedImageUri = MutableStateFlow<Uri?>(null)
+    val selectedImageUri: StateFlow<Uri?> = _selectedImageUri.asStateFlow()
 
     // Add to AddModuleViewModel.kt
     data class ArasaacSymbol(
@@ -104,6 +106,9 @@ class AddModuleViewModel : ViewModel() {
         searchJob?.cancel()
     }
 
+    fun setSelectedImageUri(uri: Uri?) {
+        _selectedImageUri.value = uri
+    }
 
     fun setFolderId(folderId: String) {
         _uiState.value = _uiState.value.copy(folderId = folderId)
@@ -161,9 +166,6 @@ class AddModuleViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(folderColor = color)
     }
 
-
-
-
     fun saveFolder() = viewModelScope.launch {
         try {
             val folder = Folder(
@@ -188,16 +190,22 @@ class AddModuleViewModel : ViewModel() {
         return CloudinaryManager.uploadImage(context, uri)
     }
 
-    fun saveCard(onComplete: () -> Unit) = viewModelScope.launch {
+    fun saveCard(context: Context, onComplete: () -> Unit) = viewModelScope.launch {
         try {
+            // Handle image upload first
+            val (imageUrl, publicId) = selectedImageUri.value?.let { uri ->
+                // Upload gallery image to Cloudinary
+                CloudinaryManager.uploadImage(context, uri)
+            } ?: uiState.value.cardImagePath // Use existing image path if no gallery image
+
             val card = uiState.value.run {
                 Card(
                     id = UUID.randomUUID().toString(),
                     label = cardLabel,
                     vocalization = cardVocalization,
                     color = cardColor,
-                    cloudinaryUrl = cardImagePath.first,
-                    cloudinaryPublicId = cardImagePath.second,
+                    cloudinaryUrl = imageUrl,
+                    cloudinaryPublicId = publicId,
                     folderId = folderId,
                     usageCount = 0,
                     lastUsed = System.currentTimeMillis()
