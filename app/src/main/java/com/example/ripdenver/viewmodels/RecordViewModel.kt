@@ -44,15 +44,21 @@ class RecordViewModel @Inject constructor() : ViewModel() {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fil-PH")
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                // Add these flags for continuous recognition
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 0)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000)
             }
             setupRecognitionListener()
         }
     }
 
-    private fun setupRecognitionListener() {
+    fun setupRecognitionListener() {
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 _isRecording.value = true
+                // Clear existing text when starting new recording
+                _recognizedText.value = ""
             }
 
             override fun onBeginningOfSpeech() {}
@@ -62,15 +68,16 @@ class RecordViewModel @Inject constructor() : ViewModel() {
             override fun onBufferReceived(buffer: ByteArray?) {}
 
             override fun onEndOfSpeech() {
-                _isRecording.value = false
+                // Don't set recording to false here to allow continuous recording
+                startRecording() // Restart listening immediately
             }
 
             override fun onError(error: Int) {
-                _isRecording.value = false
                 when (error) {
                     SpeechRecognizer.ERROR_NO_MATCH -> {
-                        if (_recognizedText.value.isEmpty()) {
-                            _recognizedText.value = "No speech detected. Please try again."
+                        // Restart listening if no match is found
+                        if (_isRecording.value) {
+                            startRecording()
                         }
                     }
                     SpeechRecognizer.ERROR_NETWORK -> _recognizedText.value = "Network error"
@@ -81,15 +88,23 @@ class RecordViewModel @Inject constructor() : ViewModel() {
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
-                    val existingText = if (_recognizedText.value.isNotEmpty()) {
-                        "${_recognizedText.value} "
-                    } else ""
-                    _recognizedText.value = existingText + (matches[0] ?: "")
+                    val newText = matches[0] ?: ""
+                    // Append new text with a space
+                    _recognizedText.value = "${_recognizedText.value} $newText".trim()
                 }
-                _isRecording.value = false
+                // Continue listening if still recording
+                if (_isRecording.value) {
+                    startRecording()
+                }
             }
 
-            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onPartialResults(partialResults: Bundle?) {
+                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val partialText = matches[0] ?: ""
+                    _recognizedText.value = "${_recognizedText.value} $partialText".trim()
+                }
+            }
 
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
@@ -98,20 +113,23 @@ class RecordViewModel @Inject constructor() : ViewModel() {
         if (_isRecording.value) {
             stopRecording()
         } else {
+            _recognizedText.value = "" // Clear text when starting new recording
             startRecording()
         }
     }
 
+    fun stopRecording() {
+        _isRecording.value = false
+        speechRecognizer?.stopListening()
+    }
+
     fun startRecording() {
-        _isRecording.value = true
+        if (!_isRecording.value) {
+            _isRecording.value = true
+        }
         recognizerIntent?.let { intent ->
             speechRecognizer?.startListening(intent)
         }
-    }
-
-    fun stopRecording() {
-        speechRecognizer?.stopListening()
-        _isRecording.value = false
     }
 
     fun setFontSize(size: TextUnit) {
