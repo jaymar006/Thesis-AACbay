@@ -511,17 +511,29 @@ fun SelectionContainer(
         verticalAlignment = Alignment.CenterVertically
     )  {
         // Scrollable selected items
-        androidx.compose.foundation.lazy.LazyRow(
-            state = lazyListState,
-            modifier = Modifier
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterStart
         ) {
-            items(selectedItems) { card ->
-                SelectedCardItem(
-                    card = card,
-                    modifier = Modifier.size(60.dp)
+            if (selectedItems.isEmpty()) {
+                Text(
+                    text = "Ang mga kard ay mapupunta dito...",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(start = 16.dp)
                 )
+            } else {
+                LazyRow(
+                    state = lazyListState,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(selectedItems) { card ->
+                        SelectedCardItem(
+                            card = card,
+                            modifier = Modifier.size(60.dp)
+                        )
+                    }
+                }
             }
         }
 
