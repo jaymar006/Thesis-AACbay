@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
+import com.example.ripdenver.viewmodels.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +56,8 @@ fun FolderScreen(
     isDeleteMode: Boolean,
     itemsToDelete: List<Any>,
     onToggleItemForDeletion: (Any) -> Unit,
-    onDeleteSelectedItems: () -> Unit
+    onDeleteSelectedItems: () -> Unit,
+    mainViewModel: MainViewModel // Add this parameter
 ) {
     val showDeleteConfirmation = remember { mutableStateOf(false) }
     
@@ -112,6 +115,15 @@ fun FolderScreen(
                     isEditMode = isEditMode,
                     navController = navController
                 )
+
+                // Add PredictiveContainer here
+                if (mainViewModel.showPredictions.collectAsState().value) {
+                    PredictiveContainer(
+                        selectedCards = selectedItems,
+                        onCardClick = onCardClick,
+                        mainViewModel = mainViewModel
+                    )
+                }
 
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 150.dp),

@@ -105,7 +105,8 @@ class MainActivity : ComponentActivity() {
                                 onDeleteSelectedItems = { mainViewModel.deleteSelectedItems() },
                                 isEditMode = isEditMode,
                                 onToggleEditMode = { mainViewModel.toggleEditMode(it) },
-                                navController = navController
+                                navController = navController,
+                                mainViewModel = mainViewModel // Add this parameter
                             )
                         }
                     }
