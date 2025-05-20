@@ -18,13 +18,13 @@ import com.example.ripdenver.ui.screens.EditCardScreen
 import com.example.ripdenver.ui.screens.EditFolderScreen
 import com.example.ripdenver.ui.screens.FolderScreen
 import com.example.ripdenver.ui.screens.MainScreen
+import com.example.ripdenver.ui.screens.RecordingScreen
+import com.example.ripdenver.ui.screens.SettingsScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import com.example.ripdenver.ui.screens.RecordingScreen
-import com.example.ripdenver.ui.screens.SettingsScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
                         val folderCards = cards.filter { it.folderId == folderId }
                         val isDeleteMode by mainViewModel.isDeleteMode.collectAsState()
                         val itemsToDelete by mainViewModel.itemsToDelete.collectAsState()
+                        val isEditMode by mainViewModel.isEditMode.collectAsState()
 
                         if (folder != null) {
                             FolderScreen(
@@ -102,6 +103,8 @@ class MainActivity : ComponentActivity() {
                                 itemsToDelete = itemsToDelete,
                                 onToggleItemForDeletion = { mainViewModel.toggleItemForDeletion(it) },
                                 onDeleteSelectedItems = { mainViewModel.deleteSelectedItems() },
+                                isEditMode = isEditMode,
+                                onToggleEditMode = { mainViewModel.toggleEditMode(it) },
                                 navController = navController
                             )
                         }

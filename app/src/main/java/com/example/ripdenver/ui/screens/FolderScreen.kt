@@ -1,6 +1,7 @@
 package com.example.ripdenver.ui.screens
 
 // FolderScreen.kt
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
-import com.example.ripdenver.ui.components.CardItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +57,8 @@ fun FolderScreen(
     onDeleteSelectedItems: () -> Unit
 ) {
     val showDeleteConfirmation = remember { mutableStateOf(false) }
+    
+    Log.d("FolderScreen", "isEditMode: $isEditMode") // Debug log
 
     Scaffold(
         topBar = {
@@ -70,6 +72,22 @@ fun FolderScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            if (isEditMode) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    // Cancel FAB
+                    FloatingActionButton(
+                        onClick = { onToggleEditMode(false) },
+                        containerColor = MaterialTheme.colorScheme.error
+                    ) {
+                        Icon(Icons.Default.Close, "Cancel Edit")
+                    }
+                }
+            }
         }
     ) { padding ->
         Box(
@@ -87,7 +105,10 @@ fun FolderScreen(
                     onAddClick = onAddClick,
                     currentFolderId = folder.id,
                     onToggleDeleteMode = onToggleDeleteMode,
-                    onToggleEditMode = onToggleEditMode,
+                    onToggleEditMode = { newEditMode ->
+                        Log.d("FolderScreen", "Toggle Edit Mode called: $newEditMode") // Debug log
+                        onToggleEditMode(newEditMode)
+                    },
                     isEditMode = isEditMode,
                     navController = navController
                 )
@@ -103,6 +124,9 @@ fun FolderScreen(
                                 onClick = {
                                     if (isDeleteMode) {
                                         onToggleItemForDeletion(card)
+                                    } else if (isEditMode) {
+                                        Log.d("FolderScreen", "Navigating to edit card: ${card.id}") // Debug log
+                                        navController.navigate("edit_card/${card.id}")
                                     } else {
                                         onCardClick(card)
                                     }
@@ -111,7 +135,8 @@ fun FolderScreen(
                                 isSelected = card in itemsToDelete,
                                 isDragging = false,
                                 isEditMode = isEditMode,
-                                onToggleDelete = { onToggleItemForDeletion(card) } // Fixed parameter name
+                                onToggleDelete = { onToggleItemForDeletion(card) },
+                                onDragStart = {} // Add this parameter
                             )
                             if (isDeleteMode) {
                                 Checkbox(
@@ -125,6 +150,7 @@ fun FolderScreen(
                 }
             }
 
+            // Delete mode FABs
             if (isDeleteMode) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -150,6 +176,8 @@ fun FolderScreen(
                     }
                 }
             }
+
+            // Delete confirmation dialog
             if (showDeleteConfirmation.value) {
                 AlertDialog(
                     onDismissRequest = { showDeleteConfirmation.value = false },
