@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ripdenver.utils.AuthenticationManager
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,6 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _columnCount = mutableStateOf(6)
     val columnCount: State<Int> = _columnCount
 
-
     val appVersion = "1.0.0" // Replace with actual version
 
     private val _showPredictions = mutableStateOf(true)
@@ -38,7 +38,12 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private var initialShowPredictions = true
 
     init {
-        Firebase.database.reference.child("settings").get()
+        loadUserSettings()
+    }
+
+    private fun loadUserSettings() {
+        val userId = AuthenticationManager.getCurrentUserId() ?: return
+        Firebase.database.reference.child("users").child(userId).child("settings").get()
             .addOnSuccessListener { snapshot ->
                 snapshot.child("columnCount").getValue(Int::class.java)?.let {
                     _columnCount.value = it
@@ -49,6 +54,9 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
                     initialShowPredictions = it
                 }
             }
+            .addOnFailureListener { e ->
+                Log.e("SettingsViewModel", "Failed to load settings", e)
+            }
     }
 
     private fun checkForChanges() {
@@ -56,14 +64,10 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
                 _showPredictions.value != initialShowPredictions
     }
 
-
     fun togglePredictions(enabled: Boolean) {
         _showPredictions.value = enabled
         checkForChanges()
     }
-
-
-
 
     fun incrementColumns() {
         if (_columnCount.value < 12) {
@@ -79,25 +83,35 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-
     fun saveSettings() {
         viewModelScope.launch {
-            Firebase.database.reference.child("settings").updateChildren(
-                mapOf(
-                    "columnCount" to _columnCount.value,
-                    "showPredictions" to _showPredictions.value
-                )
-            )
-            initialColumnCount = _columnCount.value
-            initialShowPredictions = _showPredictions.value
-            _hasUnsavedChanges.value = false
+            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
+            try {
+                Firebase.database.reference.child("users").child(userId).child("settings")
+                    .updateChildren(
+                        mapOf(
+                            "columnCount" to _columnCount.value,
+                            "showPredictions" to _showPredictions.value
+                        )
+                    )
+                    .addOnSuccessListener {
+                        initialColumnCount = _columnCount.value
+                        initialShowPredictions = _showPredictions.value
+                        _hasUnsavedChanges.value = false
+                        Log.d("SettingsViewModel", "Settings saved successfully")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("SettingsViewModel", "Failed to save settings", e)
+                    }
+            } catch (e: Exception) {
+                Log.e("SettingsViewModel", "Error saving settings", e)
+            }
         }
     }
 
-
-
     fun exportDatabase(context: Context) {
-        Firebase.database.reference.get()
+        val userId = AuthenticationManager.getCurrentUserId() ?: return
+        Firebase.database.reference.child("users").child(userId).get()
             .addOnSuccessListener { snapshot ->
                 val json = snapshot.value.toString()
                 val file = File(context.cacheDir, "aacbay_backup.json")
@@ -124,15 +138,18 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     }
 
     fun importDatabase(context: Context, uri: Uri) {
+        val userId = AuthenticationManager.getCurrentUserId() ?: return
         try {
             val inputStream = context.contentResolver.openInputStream(uri)
             val json = inputStream?.bufferedReader().use { it?.readText() }
 
-            // Import to Firebase
+            // Import to Firebase under user's path
             json?.let {
-                Firebase.database.reference.setValue(it)
+                Firebase.database.reference.child("users").child(userId).setValue(it)
                     .addOnSuccessListener {
                         Log.d("SettingsViewModel", "Import successful")
+                        // Reload settings after import
+                        loadUserSettings()
                     }
                     .addOnFailureListener { e ->
                         Log.e("SettingsViewModel", "Import failed", e)

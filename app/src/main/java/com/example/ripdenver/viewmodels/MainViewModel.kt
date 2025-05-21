@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.models.Ngram
+import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.utils.CloudinaryManager
+import com.example.ripdenver.utils.DefaultContent
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
@@ -18,7 +20,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-
 enum class SortType {
     FOLDER_FIRST,
     CARD_FIRST,
@@ -28,6 +29,7 @@ enum class SortType {
     BY_COLOR,
     BY_USAGE
 }
+
 class MainViewModel : ViewModel() {
     private val database = Firebase.database.reference
 
@@ -35,15 +37,14 @@ class MainViewModel : ViewModel() {
     private val _predictedCards = MutableStateFlow<List<Card>>(emptyList())
     private val _cards = MutableStateFlow<List<Card>>(emptyList())
     private val _folders = MutableStateFlow<List<Folder>>(emptyList())
-    private val _selectedCards = MutableStateFlow<List<Card>>(emptyList()) // Card lang pare
+    private val _selectedCards = MutableStateFlow<List<Card>>(emptyList())
     private val _isDeleteMode = MutableStateFlow(false)
     private val _itemsToDelete = MutableStateFlow<List<Any>>(emptyList())
     private val _isEditMode = MutableStateFlow(false)
     private val _sortedItems = MutableStateFlow<List<Any>>(emptyList())
     private val _lastSortType = MutableStateFlow(SortType.UNSORTED)
     private val _isOffline = MutableStateFlow(false)
-
-
+    private val _isLoading = MutableStateFlow(true)
 
     val cards = _cards.asStateFlow()
     val folders = _folders.asStateFlow()
@@ -55,14 +56,13 @@ class MainViewModel : ViewModel() {
     val lastSortType = _lastSortType.asStateFlow()
     val predictedCards = _predictedCards.asStateFlow()
     val isOffline = _isOffline.asStateFlow()
+    val isLoading = _isLoading.asStateFlow()
 
     private val _columnCount = MutableStateFlow(6)
     val columnCount = _columnCount.asStateFlow()
 
-
     private val _showPredictions = MutableStateFlow(true)
     val showPredictions = _showPredictions.asStateFlow()
-
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
     private enum class ItemOrder {
@@ -72,10 +72,173 @@ class MainViewModel : ViewModel() {
     }
 
     init {
-        loadCards()
-        loadFolders()
-        observeGridSettings()
+        initializeUser()
     }
+
+    private fun initializeUser() {
+        viewModelScope.launch {
+            try {
+                val userId = AuthenticationManager.signInAnonymously()
+                loadUserData(userId)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to initialize user", e)
+                _isOffline.value = true
+            }
+        }
+    }
+
+    private fun loadUserData(userId: String) {
+        loadCards(userId)
+        loadFolders(userId)
+        observeGridSettings(userId)
+        _isLoading.value = false
+    }
+
+    private fun loadCards(userId: String) {
+        database.child("users").child(userId).child("cards")
+            .orderByChild("order")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    _cards.value = snapshot.children.mapNotNull { it.getValue(Card::class.java) }
+                    updateSortedItems()
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e("MainViewModel", "Failed to load cards", error.toException())
+                }
+            })
+    }
+
+    private fun loadFolders(userId: String) {
+        database.child("users").child(userId).child("folders")
+            .orderByChild("order")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    _folders.value = snapshot.children.mapNotNull { it.getValue(Folder::class.java) }
+                    updateSortedItems()
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e("MainViewModel", "Failed to load folders", error.toException())
+                }
+            })
+    }
+
+    private fun observeGridSettings(userId: String) {
+        database.child("users").child(userId).child("settings")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    snapshot.child("columnCount").getValue(Int::class.java)?.let {
+                        _columnCount.value = it
+                    }
+                    snapshot.child("showPredictions").getValue(Boolean::class.java)?.let {
+                        _showPredictions.value = it
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    Log.e("MainViewModel", "Failed to load grid settings", error.toException())
+                }
+            })
+    }
+
+    // Predict the next card
+    fun predictNextCards(selectedCards: List<Card>) {
+        viewModelScope.launch {
+            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
+            if (selectedCards.isEmpty()) {
+                _predictedCards.value = emptyList()
+                return@launch
+            }
+
+            val lastCardId = selectedCards.last().id
+            database.child("users").child(userId).child("ngrams")
+                .orderByChild("sequenceHash")
+                .startAt("${lastCardId}_")
+                .endAt("${lastCardId}_\uf8ff")
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val predictedCardIds = mutableSetOf<String>()
+                    snapshot.children.forEach { ngramSnapshot ->
+                        val ngram = ngramSnapshot.getValue(Ngram::class.java)
+                        ngram?.sequence?.getOrNull(1)?.let { nextCardId ->
+                            predictedCardIds.add(nextCardId)
+                        }
+                    }
+
+                    val predictions = predictedCardIds
+                        .mapNotNull { id -> cards.value.find { it.id == id } }
+                        .sortedByDescending { card ->
+                            snapshot.children
+                                .firstOrNull {
+                                    it.getValue(Ngram::class.java)?.sequence?.get(1) == card.id
+                                }
+                                ?.getValue(Ngram::class.java)
+                                ?.frequency ?: 0
+                        }
+
+                    _predictedCards.value = predictions
+                }
+        }
+    }
+
+    // Add this new function to save ngrams
+    fun saveNgram(selectedCards: List<Card>) {
+        viewModelScope.launch {
+            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
+            if (selectedCards.size < 2) {
+                Log.d("MainViewModel", "Not enough cards for ngram (${selectedCards.size} cards)")
+                return@launch
+            }
+
+            try {
+                // Create sequence of card IDs
+                val sequence = selectedCards.map { it.id }
+                val sequenceHash = sequence.joinToString("_")
+                Log.d("MainViewModel", "Saving ngram with sequence: $sequenceHash")
+
+                // Check if this ngram already exists
+                val ngramSnapshot = database.child("users").child(userId).child("ngrams")
+                    .orderByChild("sequenceHash")
+                    .equalTo(sequenceHash)
+                    .get()
+                    .await()
+
+                if (ngramSnapshot.exists()) {
+                    // Update existing ngram
+                    ngramSnapshot.children.firstOrNull()?.let { existingNgram ->
+                        val ngram = existingNgram.getValue(Ngram::class.java)
+                        ngram?.let {
+                            val updatedNgram = it.increment()
+                            Log.d("MainViewModel", "Updating existing ngram: ${existingNgram.key}")
+                            database.child("users").child(userId).child("ngrams")
+                                .child(existingNgram.key!!)
+                                .setValue(updatedNgram)
+                                .await()
+                        }
+                    }
+                } else {
+                    // Create new ngram
+                    val ngram = Ngram(
+                        userId = userId,
+                        sequence = sequence,
+                        frequency = 1,
+                        lastUsed = System.currentTimeMillis(),
+                        sequenceHash = sequenceHash
+                    )
+                    Log.d("MainViewModel", "Creating new ngram with sequence: $sequenceHash")
+                    database.child("users").child(userId).child("ngrams")
+                        .push()
+                        .setValue(ngram)
+                        .await()
+                }
+                Log.d("MainViewModel", "Successfully saved ngram")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error saving ngram", e)
+            }
+        }
+    }
+
     // Check if online :>
     fun checkConnectivity() {
         viewModelScope.launch {
@@ -97,82 +260,6 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    private fun observeGridSettings() {
-        Firebase.database.reference.child("settings")
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    snapshot.child("columnCount").getValue(Int::class.java)?.let {
-                        _columnCount.value = it
-                    }
-                    snapshot.child("showPredictions").getValue(Boolean::class.java)?.let {
-                        _showPredictions.value = it
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    Log.e("MainViewModel", "Failed to load grid settings", error.toException())
-                }
-            })
-    }
-
-
-    // Predict the next card
-    fun predictNextCards(selectedCards: List<Card>) {
-        viewModelScope.launch {
-            android.util.Log.d("MainViewModel", "predictNextCards called with ${selectedCards.size} cards")
-            if (selectedCards.isEmpty()) {
-                android.util.Log.d("MainViewModel", "No cards selected, returning empty predictions")
-                _predictedCards.value = emptyList()
-                return@launch
-            }
-
-            val lastCardId = selectedCards.last().id
-            android.util.Log.d("MainViewModel", "Looking for predictions after card: $lastCardId")
-
-            Firebase.database.reference
-                .child("ngrams")
-                .orderByChild("sequenceHash")
-                .startAt("${lastCardId}_")
-                .endAt("${lastCardId}_\uf8ff")
-                .get()
-                .addOnSuccessListener { snapshot ->
-                    android.util.Log.d("MainViewModel", "Query successful, exists: ${snapshot.exists()}")
-                    android.util.Log.d("MainViewModel", "Found ${snapshot.childrenCount} n-grams")
-
-                    val predictedCardIds = mutableSetOf<String>()
-                    snapshot.children.forEach { ngramSnapshot ->
-                        val ngram = ngramSnapshot.getValue(Ngram::class.java)
-                        android.util.Log.d("MainViewModel", "N-gram: $ngram")
-
-                        // Get the second card ID from the sequence
-                        ngram?.sequence?.getOrNull(1)?.let { nextCardId ->
-                            android.util.Log.d("MainViewModel", "Adding predicted card ID: $nextCardId")
-                            predictedCardIds.add(nextCardId)
-                        }
-                    }
-
-                    // Convert IDs to cards and sort by frequency
-                    val predictions = predictedCardIds
-                        .mapNotNull { id -> cards.value.find { it.id == id } }
-                        .sortedByDescending { card ->
-                            snapshot.children
-                                .firstOrNull {
-                                    it.getValue(Ngram::class.java)?.sequence?.get(1) == card.id
-                                }
-                                ?.getValue(Ngram::class.java)
-                                ?.frequency ?: 0
-                        }
-
-                    android.util.Log.d("MainViewModel", "Final predictions: ${predictions.map { it.id }}")
-                    _predictedCards.value = predictions
-                }
-                .addOnFailureListener { exception ->
-                    android.util.Log.e("MainViewModel", "Query failed", exception)
-                }
-        }
-    }
-
-
     fun toggleEditMode(enabled: Boolean) {
         _isEditMode.value = enabled
         if (!enabled) {
@@ -183,14 +270,15 @@ class MainViewModel : ViewModel() {
     // Selection Management
     fun addToSelection(card: Card) {
         _selectedCards.update { current ->
-            current + card // So that we can select multiple of the same card
-            // we an use (if (card in current) current - card else current + card) for single selection
+            val newSelection = current + card
+            newSelection
         }
     }
 
     fun addCardToSelection(card: Card) {
         _selectedCards.update { current ->
-            current + card
+            val newSelection = current + card
+            newSelection
         }
     }
 
@@ -214,37 +302,6 @@ class MainViewModel : ViewModel() {
     }
 
     // Data Loading
-    private fun loadCards() {
-        database.child("cards")
-            .orderByChild("order")
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    _cards.value = snapshot.children.mapNotNull { it.getValue(Card::class.java) }
-                    updateSortedItems() // Add this
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    // Handle error
-                }
-            })
-    }
-
-    private fun loadFolders() {
-        database.child("folders")
-            .orderByChild("order")
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    _folders.value = snapshot.children.mapNotNull { it.getValue(Folder::class.java) }
-                    updateSortedItems() // Add this
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    // Handle error
-                }
-            })
-    }
-
-    // Add this new function
     private fun updateSortedItems() {
         val allItems = mutableListOf<Any>()
         allItems.addAll(_folders.value)
@@ -259,9 +316,6 @@ class MainViewModel : ViewModel() {
 
         _sortedItems.value = allItems
     }
-
-
-
 
     fun sortItems(sortType: SortType) = viewModelScope.launch {
         _lastSortType.value = sortType
@@ -358,13 +412,13 @@ class MainViewModel : ViewModel() {
         sortedItems.forEachIndexed { index, item ->
             when (item) {
                 is Folder -> {
-                    database.child("folders")
+                    database.child("users").child(AuthenticationManager.getCurrentUserId() ?: "").child("folders")
                         .child(item.id)
                         .child("order")
                         .setValue(index)
                 }
                 is Card -> {
-                    database.child("cards")
+                    database.child("users").child(AuthenticationManager.getCurrentUserId() ?: "").child("cards")
                         .child(item.id)
                         .child("order")
                         .setValue(index)
@@ -405,47 +459,47 @@ class MainViewModel : ViewModel() {
     }
 
     private suspend fun deleteCard(card: Card) {
+        val userId = AuthenticationManager.getCurrentUserId() ?: return
         try {
-            android.util.Log.d("CardDeletion", "Starting deletion for card ID: ${card.id}")
-            android.util.Log.d("CardDeletion", "Using Cloudinary Public ID: ${card.cloudinaryPublicId}")
-
-            // Delete from Cloudinary first using the cloudinaryPublicId
-            if (card.cloudinaryPublicId.isNotEmpty()) {
-                android.util.Log.d("CardDeletion", "Attempting Cloudinary deletion")
-                // Here's where we pass the cloudinaryPublicId, not the card.id
-                val deleteResult = CloudinaryManager.deleteImage(card.cloudinaryPublicId)
-                android.util.Log.d("CardDeletion", "Cloudinary deletion result: $deleteResult")
+            // Check if this is a default card by comparing its properties with DefaultContent
+            val isDefaultCard = DefaultContent.defaultCards.any { defaultCard ->
+                defaultCard["label"] == card.label &&
+                defaultCard["vocalization"] == card.vocalization &&
+                defaultCard["color"] == card.color &&
+                defaultCard["folderId"] == card.folderId &&
+                defaultCard["cloudinaryPublicId"] == card.cloudinaryPublicId
             }
 
-            // Then delete from Firebase using card.id
-            database.child("cards").child(card.id).removeValue().await()
-            android.util.Log.d("CardDeletion", "Firebase deletion successful")
+            // Only delete from Cloudinary if it's not a default card
+            if (!isDefaultCard && card.cloudinaryPublicId.isNotEmpty()) {
+                val deleteResult = CloudinaryManager.deleteImage(card.cloudinaryPublicId)
+                Log.d("CardDeletion", "Cloudinary deletion result: $deleteResult")
+            }
+
+            database.child("users").child(userId).child("cards").child(card.id).removeValue().await()
         } catch (e: Exception) {
-            android.util.Log.e("CardDeletion", "Error deleting card", e)
+            Log.e("CardDeletion", "Error deleting card", e)
             throw e
         }
     }
 
-
     private suspend fun deleteFolder(folder: Folder) {
+        val userId = AuthenticationManager.getCurrentUserId() ?: return
         try {
-            // Get all cards in folder
-            val snapshot = database.child("cards")
+            val snapshot = database.child("users").child(userId).child("cards")
                 .orderByChild("folderId")
                 .equalTo(folder.id)
                 .get()
                 .await()
 
-            // Delete all cards in folder
             snapshot.children.forEach { cardSnapshot ->
                 val card = cardSnapshot.getValue(Card::class.java)
                 card?.let { deleteCard(it) }
             }
 
-            // Delete folder after all cards are processed
-            database.child("folders").child(folder.id).removeValue().await()
+            database.child("users").child(userId).child("folders").child(folder.id).removeValue().await()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("MainViewModel", "Error deleting folder", e)
         }
     }
 }

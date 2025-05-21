@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.state.EditCardState
+import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.utils.CloudinaryManager
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
@@ -71,7 +72,10 @@ class EditCardViewModel : ViewModel() {
     fun loadCardData(cardId: String) {
         viewModelScope.launch {
             try {
+                val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
                 val cardSnapshot = Firebase.database.reference
+                    .child("users")
+                    .child(userId)
                     .child("cards")
                     .child(cardId)
                     .get()
@@ -89,7 +93,6 @@ class EditCardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                // Handle error
                 e.printStackTrace()
             }
         }
@@ -146,9 +149,9 @@ class EditCardViewModel : ViewModel() {
     fun updateCard(context: Context, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
-                // Upload image if a new one was selected
+                val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
                 val urlAndId = _selectedImageUrl.value?.let { url ->
-                    uploadArasaacImage(context, url)
+                    CloudinaryManager.uploadImage(context, Uri.parse(url))
                 } ?: uiState.value.cardImagePath
 
                 val card = uiState.value.run {
@@ -166,12 +169,13 @@ class EditCardViewModel : ViewModel() {
                 }
 
                 Firebase.database.reference
+                    .child("users")
+                    .child(userId)
                     .child("cards")
                     .child(card.id)
                     .setValue(card)
                     .await()
 
-                // Clear selected image URL
                 _selectedImageUrl.value = null
                 onComplete()
             } catch (e: Exception) {

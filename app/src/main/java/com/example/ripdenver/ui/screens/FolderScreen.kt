@@ -113,7 +113,8 @@ fun FolderScreen(
                         onToggleEditMode(newEditMode)
                     },
                     isEditMode = isEditMode,
-                    navController = navController
+                    navController = navController,
+                    mainViewModel = mainViewModel
                 )
 
                 // Add PredictiveContainer here

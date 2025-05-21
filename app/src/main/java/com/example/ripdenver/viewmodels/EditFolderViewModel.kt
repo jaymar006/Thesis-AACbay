@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.state.EditFolderState
+import com.example.ripdenver.utils.AuthenticationManager
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,10 @@ class EditFolderViewModel : ViewModel() {
     fun loadFolderData(folderId: String) {
         viewModelScope.launch {
             try {
+                val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
                 val folderSnapshot = Firebase.database.reference
+                    .child("users")
+                    .child(userId)
                     .child("folders")
                     .child(folderId)
                     .get()
@@ -51,16 +55,19 @@ class EditFolderViewModel : ViewModel() {
     fun updateFolder(onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
+                val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
                 val folder = uiState.value.run {
                     Folder(
                         id = folderId,
                         name = folderLabel,
                         color = folderColor,
-                        createdAt = System.currentTimeMillis() // This should be retrieved from the original folder
+                        createdAt = System.currentTimeMillis()
                     )
                 }
 
                 Firebase.database.reference
+                    .child("users")
+                    .child(userId)
                     .child("folders")
                     .child(folder.id)
                     .setValue(folder)

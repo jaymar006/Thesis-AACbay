@@ -67,9 +67,9 @@ import androidx.navigation.NavController
 import com.example.ripdenver.AACbayApplication
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
-import com.example.ripdenver.models.Ngram
 import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
+import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.viewmodels.MainViewModel
 import com.example.ripdenver.viewmodels.SortType
 import com.google.firebase.database.ktx.database
@@ -320,7 +320,8 @@ fun MainScreen(
                         onToggleDeleteMode = onToggleDeleteMode,
                         onToggleEditMode = onToggleEditMode,
                         isEditMode = isEditMode,
-                        navController = navController
+                        navController = navController,
+                        mainViewModel = mainViewModel
                     )
 
                     if (showPredictions) {
@@ -435,6 +436,7 @@ fun SelectionContainer(
     currentFolderId: String? = null,
     modifier: Modifier = Modifier,
     navController: NavController,
+    mainViewModel: MainViewModel
 ) {
     val showDropdownMenu = remember { mutableStateOf(false) }
     val lazyListState: LazyListState = rememberLazyListState()
@@ -460,7 +462,7 @@ fun SelectionContainer(
             .clickable {
                 // Update usage for all selected cards
                 selectedItems.forEach { card ->
-                    val cardRef = database.child("cards").child(card.id)
+                    val cardRef = database.child("users").child(AuthenticationManager.getCurrentUserId() ?: "").child("cards").child(card.id)
 
                     // First get the current value from database
                     cardRef.get().addOnSuccessListener { snapshot ->
@@ -475,27 +477,21 @@ fun SelectionContainer(
                     }
                 }
 
-                // Create bigrams if there are 2 or more cards
+                // Save ngram using ViewModel
                 if (selectedItems.size >= 2) {
+                    Log.d("SelectionContainer", "Attempting to save ngrams with ${selectedItems.size} cards")
+                    Log.d("SelectionContainer", "Card IDs: ${selectedItems.map { it.id }}")
+                    
+                    // Save all possible sequences of 2 or more cards
                     for (i in 0 until selectedItems.size - 1) {
-                        val pair = listOf(selectedItems[i].id, selectedItems[i + 1].id)
-                        val ngramHash = pair.joinToString("_")
-
-                        // Update or create bigram
-                        val ngramRef = database.child("ngrams").child(ngramHash)
-                        ngramRef.get().addOnSuccessListener { snapshot ->
-                            val existing = snapshot.getValue(Ngram::class.java)
-                            val updated = if (existing != null) {
-                                existing.increment()
-                            } else {
-                                Ngram(
-                                    sequence = pair,
-                                    sequenceHash = ngramHash
-                                )
-                            }
-                            ngramRef.setValue(updated)
+                        for (j in i + 1 until selectedItems.size) {
+                            val sequence = selectedItems.subList(i, j + 1)
+                            Log.d("SelectionContainer", "Saving sequence: ${sequence.map { it.id }}")
+                            mainViewModel.saveNgram(sequence)
                         }
                     }
+                } else {
+                    Log.d("SelectionContainer", "Not enough cards for ngram (${selectedItems.size} cards)")
                 }
 
                 // Speak text (existing TTS logic)

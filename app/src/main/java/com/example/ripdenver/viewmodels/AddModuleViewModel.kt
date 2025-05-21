@@ -9,6 +9,7 @@ import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.state.AddModuleState
+import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.utils.CloudinaryManager
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ktx.database
@@ -168,6 +169,7 @@ class AddModuleViewModel : ViewModel() {
 
     fun saveFolder() = viewModelScope.launch {
         try {
+            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
             val folder = Folder(
                 id = UUID.randomUUID().toString(),
                 name = uiState.value.folderLabel,
@@ -177,6 +179,8 @@ class AddModuleViewModel : ViewModel() {
 
             // Save to Firebase
             Firebase.database.reference
+                .child("users")
+                .child(userId)
                 .child("folders")
                 .child(folder.id)
                 .setValue(folder)
@@ -192,6 +196,7 @@ class AddModuleViewModel : ViewModel() {
 
     fun saveCard(context: Context, onComplete: () -> Unit) = viewModelScope.launch {
         try {
+            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
             // Handle image upload first
             val (imageUrl, publicId) = selectedImageUri.value?.let { uri ->
                 // Upload gallery image to Cloudinary
@@ -212,7 +217,11 @@ class AddModuleViewModel : ViewModel() {
                 )
             }
 
-            Firebase.database.reference.child("cards").child(card.id)
+            Firebase.database.reference
+                .child("users")
+                .child(userId)
+                .child("cards")
+                .child(card.id)
                 .setValue(card)
                 .await()
 
@@ -224,9 +233,13 @@ class AddModuleViewModel : ViewModel() {
 
 
     suspend fun saveImageToFirebase(card: Card) {
+        val userId = AuthenticationManager.getCurrentUserId() ?: return
         val database = FirebaseDatabase.getInstance()
-        val ref = database.getReference("cards").child(card.id) // Use the card's ID as the key
-        ref.setValue(card) // Save the entire Card object
+        val ref = database.getReference("users")
+            .child(userId)
+            .child("cards")
+            .child(card.id)
+        ref.setValue(card)
     }
 
     private suspend fun downloadImage(context: Context, imageUrl: String): File {
