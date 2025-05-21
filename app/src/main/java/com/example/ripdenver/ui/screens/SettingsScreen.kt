@@ -140,7 +140,7 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Prediction",
+                            text = "Suggestion",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(

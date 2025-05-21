@@ -132,63 +132,16 @@ fun EditFolderScreen(
                     .padding(bottom = 16.dp)
             )
 
-            // Color picker button
-            OutlinedButton(
-                onClick = { showColorPicker.value = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Text("Choose Color")
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .padding(start = 8.dp)
-                        .background(
-                            Color(android.graphics.Color.parseColor(uiState.folderColor)),
-                            CircleShape
-                        )
-                )
-            }
-
-            if (showColorPicker.value) {
-                AlertDialog(
-                    onDismissRequest = { showColorPicker.value = false },
-                    title = { Text("Select Color") },
-                    text = {
-                        LazyVerticalGrid(
-                            columns = GridCells.Adaptive(40.dp),
-                            contentPadding = PaddingValues(8.dp)
-                        ) {
-                            items(availableColors) { colorHex ->
-                                Box(
-                                    modifier = Modifier
-                                        .padding(4.dp)
-                                        .size(40.dp)
-                                        .background(
-                                            Color(android.graphics.Color.parseColor(colorHex)),
-                                            CircleShape
-                                        )
-                                        .border(
-                                            2.dp,
-                                            if (colorHex == uiState.folderColor) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                            CircleShape
-                                        )
-                                        .clickable {
-                                            viewModel.updateFolderColor(colorHex)
-                                            showColorPicker.value = false
-                                        }
-                                )
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showColorPicker.value = false }) {
-                            Text("Close")
-                        }
-                    }
-                )
-            }
+            // Color picker (replace dropdown with ColorSelectionRow)
+            Text(
+                text = "Mga Kulay",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 0.dp, bottom = 4.dp)
+            )
+            ColorSelectionRow(
+                selectedColor = uiState.folderColor,
+                onColorSelected = { viewModel.updateFolderColor(it) }
+            )
         }
     }
 }

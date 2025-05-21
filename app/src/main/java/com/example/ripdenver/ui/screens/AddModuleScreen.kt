@@ -435,7 +435,9 @@ public fun ColorSelectionRow(
         "#00FFFF" to "Cyan",
         "#FFA500" to "Orange",
         "#800080" to "Purple",
-        "#808080" to "Gray"
+        "#808080" to "Gray",
+        "#FFC0CB" to "Pink",
+        "#A52A2A" to "Brown"
     )
 
     Row(

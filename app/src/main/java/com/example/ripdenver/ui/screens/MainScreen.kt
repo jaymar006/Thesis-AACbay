@@ -113,6 +113,7 @@ fun MainScreen(
     val isOffline = mainViewModel.isOffline.collectAsState().value
     val currentColumnCount = mainViewModel.columnCount.collectAsState().value
     val showPredictions = mainViewModel.showPredictions.collectAsState().value
+    val isLoading = mainViewModel.isLoading.collectAsState().value
 
     LaunchedEffect(Unit) {
         mainViewModel.checkConnectivity()
@@ -161,7 +162,7 @@ fun MainScreen(
 
     Scaffold(
         floatingActionButton = {
-            if (!isDeleteMode && !isEditMode && !isOffline) {
+            if (!isDeleteMode && !isEditMode && !isOffline && !isLoading) {
                 ControlButtons(
                     navController = navController,
                     onMicClick = onMicClick,
@@ -272,7 +273,25 @@ fun MainScreen(
             .padding(padding)
             .fillMaxSize()
         ) {
-            if (isOffline) {
+            if (isLoading) {
+                // Show loading description while default content is being loaded
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(40.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Nilalagay ang mga kards at folders ...",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else if (isOffline) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
