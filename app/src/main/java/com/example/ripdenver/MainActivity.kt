@@ -1,9 +1,11 @@
 package com.example.ripdenver
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -14,17 +16,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.ripdenver.ui.screens.AddModuleScreen
+import com.example.ripdenver.ui.screens.DeveloperScreen
 import com.example.ripdenver.ui.screens.EditCardScreen
 import com.example.ripdenver.ui.screens.EditFolderScreen
 import com.example.ripdenver.ui.screens.FolderScreen
 import com.example.ripdenver.ui.screens.MainScreen
+import com.example.ripdenver.ui.screens.NgramVisualizationScreen
 import com.example.ripdenver.ui.screens.RecordingScreen
 import com.example.ripdenver.ui.screens.SettingsScreen
-import com.example.ripdenver.ui.screens.DeveloperScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
+import com.example.ripdenver.viewmodels.NgramVisualizationViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -173,6 +177,23 @@ class MainActivity : ComponentActivity() {
 
                     composable("developer") {
                         DeveloperScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToNgramVisualization = { navController.navigate("ngram_visualization") }
+                        )
+                    }
+
+                    composable("ngram_visualization") {
+                        val viewModel: NgramVisualizationViewModel = hiltViewModel()
+                        
+                        // Get selected cards from MainViewModel and update NgramVisualizationViewModel
+                        LaunchedEffect(Unit) {
+                            mainViewModel.selectedCards.collect { selectedCards ->
+                                Log.d("MainActivity", "Updating NgramVisualization with ${selectedCards.size} selected cards")
+                                viewModel.updateSelectedCards(selectedCards)
+                            }
+                        }
+                        
+                        NgramVisualizationScreen(
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }

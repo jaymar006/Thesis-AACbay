@@ -30,17 +30,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ripdenver.viewmodels.DeveloperViewModel
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeveloperScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToNgramVisualization: () -> Unit,
     viewModel: DeveloperViewModel = hiltViewModel()
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Developer Tools") },
+                title = { Text("Developer Options") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -51,70 +53,66 @@ fun DeveloperScreen(
     ) { padding ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Ngram Button
-            DeveloperToolButton(
-                title = "Ngram",
-                description = "View and manage n-gram data",
+            DeveloperOptionCard(
+                title = "N-gram Visualization",
+                description = "View and analyze n-gram patterns and predictions",
                 icon = Icons.Default.Analytics,
-                onClick = { /* TODO: Implement Ngram functionality */ }
+                onClick = onNavigateToNgramVisualization
             )
 
-            // View Database Button
-            DeveloperToolButton(
-                title = "View Database",
-                description = "Inspect database contents",
-                icon = Icons.Default.Storage,
-                onClick = { /* TODO: Implement Database viewer */ }
-            )
-
-            // Crash Logs Button
-            DeveloperToolButton(
-                title = "Crash Logs",
-                description = "View crash reports",
+            DeveloperOptionCard(
+                title = "Debug Information",
+                description = "View detailed debug information and logs",
                 icon = Icons.Default.BugReport,
-                onClick = { /* TODO: Implement Crash logs viewer */ }
+                onClick = { /* TODO: Implement debug info screen */ }
+            )
+
+            DeveloperOptionCard(
+                title = "Storage Management",
+                description = "Manage local storage and cache",
+                icon = Icons.Default.Storage,
+                onClick = { /* TODO: Implement storage management */ }
             )
         }
     }
 }
 
 @Composable
-fun DeveloperToolButton(
+private fun DeveloperOptionCard(
     title: String,
     description: String,
     icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        onClick = onClick
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
-            
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp)
             ) {
                 Text(
                     text = title,
