@@ -25,6 +25,8 @@ import com.example.ripdenver.ui.screens.NgramVisualizationScreen
 import com.example.ripdenver.ui.screens.RecordingScreen
 import com.example.ripdenver.ui.screens.SettingsScreen
 import com.example.ripdenver.ui.screens.StorageManagementScreen
+import com.example.ripdenver.ui.screens.CrashLogsScreen
+import com.example.ripdenver.ui.screens.HelpScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
@@ -172,7 +174,14 @@ class MainActivity : ComponentActivity() {
                     composable("settings") {
                         SettingsScreen(
                             onNavigateBack = { navController.popBackStack() },
-                            onNavigateToDeveloper = { navController.navigate("developer") }
+                            onNavigateToDeveloper = { navController.navigate("developer") },
+                            onNavigateToHelp = { navController.navigate("help") }
+                        )
+                    }
+
+                    composable("help") {
+                        HelpScreen(
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
 
@@ -180,7 +189,14 @@ class MainActivity : ComponentActivity() {
                         DeveloperScreen(
                             onNavigateBack = { navController.popBackStack() },
                             onNavigateToNgramVisualization = { navController.navigate("ngram_visualization") },
-                            onNavigateToStorageManagement = { navController.navigate("storage_management") }
+                            onNavigateToStorageManagement = { navController.navigate("storage_management") },
+                            onNavigateToCrashLogs = { navController.navigate("crash_logs") }
+                        )
+                    }
+
+                    composable("crash_logs") {
+                        CrashLogsScreen(
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
 

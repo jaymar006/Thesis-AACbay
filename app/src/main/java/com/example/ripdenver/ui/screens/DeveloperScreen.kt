@@ -32,13 +32,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ripdenver.viewmodels.DeveloperViewModel
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeveloperScreen(
     onNavigateBack: () -> Unit,
     onNavigateToNgramVisualization: () -> Unit,
-    onNavigateToStorageManagement: () -> Unit
+    onNavigateToStorageManagement: () -> Unit,
+    onNavigateToCrashLogs: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -63,6 +66,12 @@ fun DeveloperScreen(
                 onClick = onNavigateToNgramVisualization,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                Icon(
+                    imageVector = Icons.Default.Analytics,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("N-gram Visualization")
             }
 
@@ -70,7 +79,26 @@ fun DeveloperScreen(
                 onClick = onNavigateToStorageManagement,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                Icon(
+                    imageVector = Icons.Default.Storage,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("Storage Management")
+            }
+
+            Button(
+                onClick = onNavigateToCrashLogs,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.BugReport,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Crash Logs")
             }
         }
     }

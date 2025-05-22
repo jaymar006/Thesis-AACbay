@@ -75,9 +75,9 @@ import kotlinx.coroutines.delay
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToDeveloper: () -> Unit
+    onNavigateToDeveloper: () -> Unit,
+    onNavigateToHelp: () -> Unit
 ) {
-    var showGuideDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var showUserIdInputDialog by remember { mutableStateOf(false) }
@@ -90,7 +90,6 @@ fun SettingsScreen(
     var tapFeedbackMessage by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val navController = rememberNavController()
 
     var showUnsavedDialog by remember { mutableStateOf(false) }
     val hasUnsavedChanges = viewModel.hasUnsavedChanges.collectAsState().value
@@ -100,7 +99,6 @@ fun SettingsScreen(
     ) { uri ->
         uri?.let { viewModel.importDatabase(context, it) }
     }
-
 
     fun handleBackPress() {
         if (hasUnsavedChanges) {
@@ -128,7 +126,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Filled.Save, "Save settings")
                     }
-                    IconButton(onClick = { showGuideDialog = true }) {
+                    IconButton(onClick = onNavigateToHelp) {
                         Icon(Icons.AutoMirrored.Filled.Help, "Guide")
                     }
                 }
@@ -343,19 +341,6 @@ fun SettingsScreen(
             // Add some bottom padding for better scrolling experience
             Spacer(modifier = Modifier.height(16.dp))
         }
-    }
-
-    if (showGuideDialog) {
-        AlertDialog(
-            onDismissRequest = { showGuideDialog = false },
-            title = { Text("Guide & Information") },
-            text = { Text("Guide content will be added here.") },
-            confirmButton = {
-                TextButton(onClick = { showGuideDialog = false }) {
-                    Text("Close")
-                }
-            }
-        )
     }
 
     if (showUnsavedDialog) {
