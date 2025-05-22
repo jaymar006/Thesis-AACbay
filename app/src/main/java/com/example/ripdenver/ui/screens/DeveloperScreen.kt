@@ -31,18 +31,19 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ripdenver.viewmodels.DeveloperViewModel
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.Button
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeveloperScreen(
     onNavigateBack: () -> Unit,
     onNavigateToNgramVisualization: () -> Unit,
-    viewModel: DeveloperViewModel = hiltViewModel()
+    onNavigateToStorageManagement: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Developer Options") },
+                title = { Text("Developer Tools") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
@@ -53,32 +54,24 @@ fun DeveloperScreen(
     ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .fillMaxSize()
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            DeveloperOptionCard(
-                title = "N-gram Visualization",
-                description = "View and analyze n-gram patterns and predictions",
-                icon = Icons.Default.Analytics,
-                onClick = onNavigateToNgramVisualization
-            )
+            Button(
+                onClick = onNavigateToNgramVisualization,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("N-gram Visualization")
+            }
 
-            DeveloperOptionCard(
-                title = "Debug Information",
-                description = "View detailed debug information and logs",
-                icon = Icons.Default.BugReport,
-                onClick = { /* TODO: Implement debug info screen */ }
-            )
-
-            DeveloperOptionCard(
-                title = "Storage Management",
-                description = "Manage local storage and cache",
-                icon = Icons.Default.Storage,
-                onClick = { /* TODO: Implement storage management */ }
-            )
+            Button(
+                onClick = onNavigateToStorageManagement,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Storage Management")
+            }
         }
     }
 }
