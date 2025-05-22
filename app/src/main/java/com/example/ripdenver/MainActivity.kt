@@ -179,9 +179,19 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable("help") {
+                    composable(
+                        "help?showTutorial={showTutorial}",
+                        arguments = listOf(
+                            navArgument("showTutorial") {
+                                type = NavType.BoolType
+                                defaultValue = false
+                            }
+                        )
+                    ) { backStackEntry ->
+                        val showTutorial = backStackEntry.arguments?.getBoolean("showTutorial") ?: false
                         HelpScreen(
-                            onNavigateBack = { navController.popBackStack() }
+                            onNavigateBack = { navController.popBackStack() },
+                            showTutorial = showTutorial
                         )
                     }
 

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.outlined.Dashboard
@@ -292,6 +293,39 @@ fun SettingsScreen(
                 title = "About",
                 icon = Icons.Outlined.Info
             ) {
+                // Tutorial Button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToHelp() }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            "App Tutorial",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Panoorin ang tutorial kung paano gamitin ang app",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Start Tutorial",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+
+                // App Version
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
