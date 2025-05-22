@@ -20,6 +20,7 @@ import com.example.ripdenver.ui.screens.FolderScreen
 import com.example.ripdenver.ui.screens.MainScreen
 import com.example.ripdenver.ui.screens.RecordingScreen
 import com.example.ripdenver.ui.screens.SettingsScreen
+import com.example.ripdenver.ui.screens.DeveloperScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
@@ -165,6 +166,13 @@ class MainActivity : ComponentActivity() {
 
                     composable("settings") {
                         SettingsScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToDeveloper = { navController.navigate("developer") }
+                        )
+                    }
+
+                    composable("developer") {
+                        DeveloperScreen(
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }

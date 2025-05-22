@@ -3,10 +3,12 @@ package com.example.ripdenver.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -47,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,15 +62,20 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.rememberNavController
 import com.example.ripdenver.viewmodels.SettingsViewModel
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToDeveloper: () -> Unit
 ) {
     var showGuideDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
@@ -74,8 +83,14 @@ fun SettingsScreen(
     var showUserIdInputDialog by remember { mutableStateOf(false) }
     var showUserIdDisplayDialog by remember { mutableStateOf(false) }
     var userIdInput by remember { mutableStateOf("") }
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinInput by remember { mutableStateOf("") }
+    var versionTapCount by remember { mutableStateOf(0) }
+    var showTapFeedback by remember { mutableStateOf(false) }
+    var tapFeedbackMessage by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val navController = rememberNavController()
 
     var showUnsavedDialog by remember { mutableStateOf(false) }
     val hasUnsavedChanges = viewModel.hasUnsavedChanges.collectAsState().value
@@ -282,7 +297,33 @@ fun SettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 8.dp)
+                        .clickable {
+                            versionTapCount++
+                            when (versionTapCount) {
+                                1 -> {
+                                    tapFeedbackMessage = "You're 4 taps away from developer tools"
+                                    showTapFeedback = true
+                                }
+                                2 -> {
+                                    tapFeedbackMessage = "You're 3 taps away from developer tools"
+                                    showTapFeedback = true
+                                }
+                                3 -> {
+                                    tapFeedbackMessage = "You're 2 taps away from developer tools"
+                                    showTapFeedback = true
+                                }
+                                4 -> {
+                                    tapFeedbackMessage = "You're 1 tap away from developer tools"
+                                    showTapFeedback = true
+                                }
+                                5 -> {
+                                    showPinDialog = true
+                                    versionTapCount = 0
+                                    showTapFeedback = false
+                                }
+                            }
+                        },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -543,6 +584,71 @@ fun SettingsScreen(
         )
     }
 
+    // PIN Dialog
+    if (showPinDialog) {
+        Log.d("SettingsScreen", "Showing PIN dialog")
+        AlertDialog(
+            onDismissRequest = { 
+                Log.d("SettingsScreen", "PIN dialog dismissed")
+                showPinDialog = false
+                pinInput = ""
+            },
+            title = { Text("Enter Developer PIN") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextField(
+                        value = pinInput,
+                        onValueChange = { 
+                            Log.d("SettingsScreen", "PIN input changed: ${it.length} characters")
+                            if (it.length <= 6) {
+                                pinInput = it
+                            }
+                        },
+                        label = { Text("PIN") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.NumberPassword
+                        ),
+                        visualTransformation = PasswordVisualTransformation()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        Log.d("SettingsScreen", "PIN submitted: $pinInput")
+                        if (pinInput == "000000") {
+                            Log.d("SettingsScreen", "PIN correct, navigating to developer screen")
+                            showPinDialog = false
+                            pinInput = ""
+                            onNavigateToDeveloper()
+                        } else {
+                            Log.d("SettingsScreen", "Invalid PIN entered")
+                            Toast.makeText(context, "Invalid PIN", Toast.LENGTH_SHORT).show()
+                            pinInput = ""
+                        }
+                    }
+                ) {
+                    Text("Submit")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { 
+                        Log.d("SettingsScreen", "PIN dialog cancelled")
+                        showPinDialog = false
+                        pinInput = ""
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     // Operation Status Dialog
     if (viewModel.showOperationStatus.value) {
         AlertDialog(
@@ -565,6 +671,15 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    // Tap Feedback Toast
+    if (showTapFeedback) {
+        LaunchedEffect(showTapFeedback) {
+            Toast.makeText(context, tapFeedbackMessage, Toast.LENGTH_SHORT).show()
+            delay(2000) // Wait for 2 seconds
+            showTapFeedback = false
+        }
     }
 }
 
