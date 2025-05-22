@@ -34,11 +34,35 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _showPredictions = mutableStateOf(true)
     val showPredictions: State<Boolean> = _showPredictions
 
+    private val _allowDataSharing = mutableStateOf(false)
+    val allowDataSharing: State<Boolean> = _allowDataSharing
+
     private var initialColumnCount = 6
     private var initialShowPredictions = true
+    private var initialAllowDataSharing = false
+
+    // Operation status states
+    private val _showOperationStatus = mutableStateOf(false)
+    val showOperationStatus: State<Boolean> = _showOperationStatus
+
+    private val _operationMessage = mutableStateOf("")
+    val operationMessage: State<String> = _operationMessage
+
+    private val _isOperationSuccess = mutableStateOf(false)
+    val isOperationSuccess: State<Boolean> = _isOperationSuccess
 
     init {
         loadUserSettings()
+    }
+
+    private fun showOperationResult(success: Boolean, message: String) {
+        _isOperationSuccess.value = success
+        _operationMessage.value = message
+        _showOperationStatus.value = true
+    }
+
+    fun dismissOperationStatus() {
+        _showOperationStatus.value = false
     }
 
     private fun loadUserSettings() {
@@ -53,6 +77,10 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
                     _showPredictions.value = it
                     initialShowPredictions = it
                 }
+                snapshot.child("allowDataSharing").getValue(Boolean::class.java)?.let {
+                    _allowDataSharing.value = it
+                    initialAllowDataSharing = it
+                }
             }
             .addOnFailureListener { e ->
                 Log.e("SettingsViewModel", "Failed to load settings", e)
@@ -61,11 +89,17 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
 
     private fun checkForChanges() {
         _hasUnsavedChanges.value = _columnCount.value != initialColumnCount ||
-                _showPredictions.value != initialShowPredictions
+                _showPredictions.value != initialShowPredictions ||
+                _allowDataSharing.value != initialAllowDataSharing
     }
 
     fun togglePredictions(enabled: Boolean) {
         _showPredictions.value = enabled
+        checkForChanges()
+    }
+
+    fun toggleDataSharing(enabled: Boolean) {
+        _allowDataSharing.value = enabled
         checkForChanges()
     }
 
@@ -91,12 +125,14 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
                     .updateChildren(
                         mapOf(
                             "columnCount" to _columnCount.value,
-                            "showPredictions" to _showPredictions.value
+                            "showPredictions" to _showPredictions.value,
+                            "allowDataSharing" to _allowDataSharing.value
                         )
                     )
                     .addOnSuccessListener {
                         initialColumnCount = _columnCount.value
                         initialShowPredictions = _showPredictions.value
+                        initialAllowDataSharing = _allowDataSharing.value
                         _hasUnsavedChanges.value = false
                         Log.d("SettingsViewModel", "Settings saved successfully")
                     }
@@ -113,50 +149,320 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         val userId = AuthenticationManager.getCurrentUserId() ?: return
         Firebase.database.reference.child("users").child(userId).get()
             .addOnSuccessListener { snapshot ->
-                val json = snapshot.value.toString()
-                val file = File(context.cacheDir, "aacbay_backup.json")
-                FileOutputStream(file).use {
-                    it.write(json.toByteArray())
-                }
+                try {
+                    // Convert the data to a properly formatted JSON string
+                    val jsonData = snapshot.value?.let { data ->
+                        val dataMap = data as? Map<String, Any> ?: mapOf()
+                        // Create a map with only the necessary data
+                        val exportData = mapOf(
+                            "cards" to (dataMap["cards"] as? Map<String, Any> ?: mapOf()),
+                            "folders" to (dataMap["folders"] as? Map<String, Any> ?: mapOf())
+                        )
+                        // Convert to JSON string with proper formatting
+                        com.google.gson.GsonBuilder()
+                            .setPrettyPrinting()
+                            .create()
+                            .toJson(exportData)
+                    } ?: "{}"
 
-                val uri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.provider",
-                    file
-                )
+                    // Create a file in the Downloads directory
+                    val timestamp = System.currentTimeMillis()
+                    val fileName = "aacbay_export_$timestamp.json"
+                    var fileUri: Uri? = null
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        // For Android 10 and above, use MediaStore
+                        val contentValues = android.content.ContentValues().apply {
+                            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                        }
 
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        val resolver = context.contentResolver
+                        val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                        
+                        uri?.let {
+                            resolver.openOutputStream(it)?.use { outputStream ->
+                                outputStream.write(jsonData.toByteArray())
+                            }
+                            fileUri = uri
+                        }
+                    } else {
+                        // For Android 9 and below, use direct file access
+                        val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                        val file = File(downloadsDir, fileName)
+                        FileOutputStream(file).use {
+                            it.write(jsonData.toByteArray())
+                        }
+                        fileUri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.provider",
+                            file
+                        )
+                    }
+
+                    // If file was saved successfully, show share options
+                    fileUri?.let { uri ->
+                        // Create and launch the share intent
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/json"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share Database"))
+                        showOperationResult(true, "Data exported to Downloads folder and ready to share")
+                    } ?: showOperationResult(false, "Failed to create file in Downloads")
+                } catch (e: Exception) {
+                    Log.e("SettingsViewModel", "Export failed", e)
+                    showOperationResult(false, "Failed to export data: ${e.message}")
                 }
-                context.startActivity(Intent.createChooser(intent, "Export Database"))
             }
-            .addOnFailureListener {
-                Log.e("SettingsViewModel", "Export failed", it)
+            .addOnFailureListener { e ->
+                Log.e("SettingsViewModel", "Export failed", e)
+                showOperationResult(false, "Failed to export data: ${e.message}")
             }
     }
 
     fun importDatabase(context: Context, uri: Uri) {
         val userId = AuthenticationManager.getCurrentUserId() ?: return
+        Log.d("SettingsViewModel", "Starting import from JSON file")
         try {
             val inputStream = context.contentResolver.openInputStream(uri)
             val json = inputStream?.bufferedReader().use { it?.readText() }
+            Log.d("SettingsViewModel", "JSON file read successfully")
 
-            // Import to Firebase under user's path
+            // Parse the JSON data
             json?.let {
-                Firebase.database.reference.child("users").child(userId).setValue(it)
-                    .addOnSuccessListener {
-                        Log.d("SettingsViewModel", "Import successful")
-                        // Reload settings after import
-                        loadUserSettings()
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e("SettingsViewModel", "Import failed", e)
-                    }
+                try {
+                    Log.d("SettingsViewModel", "Attempting to parse JSON data")
+                    val type = object : com.google.gson.reflect.TypeToken<Map<String, Map<String, Any>>>() {}.type
+                    val importData = com.google.gson.Gson().fromJson<Map<String, Map<String, Any>>>(it, type)
+                    Log.d("SettingsViewModel", "JSON parsed successfully")
+
+                    // Get current user's data to compare
+                    Log.d("SettingsViewModel", "Fetching current user data")
+                    Firebase.database.reference.child("users").child(userId)
+                        .get()
+                        .addOnSuccessListener { currentSnapshot ->
+                            Log.d("SettingsViewModel", "Current user data fetched successfully")
+                            val updates = mutableMapOf<String, Any>()
+                            var newItemsCount = 0
+
+                            // Create type indicators for Firebase
+                            val folderType = object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {}
+                            val cardType = object : com.google.firebase.database.GenericTypeIndicator<Map<String, Any>>() {}
+
+                            // Collect existing image URLs
+                            val existingImageUrls = mutableSetOf<String>()
+                            currentSnapshot.child("cards").children.forEach { existingCard ->
+                                val existingCardData = existingCard.getValue(cardType)
+                                existingCardData?.get("imageUrl")?.toString()?.let { url ->
+                                    existingImageUrls.add(url)
+                                }
+                            }
+
+                            // Process folders
+                            Log.d("SettingsViewModel", "Processing folders")
+                            importData["folders"]?.forEach { (folderId, folderData) ->
+                                try {
+                                    val folderMap = folderData as? Map<String, Any>
+                                    val folderName = folderMap?.get("name") as? String
+                                    Log.d("SettingsViewModel", "Checking folder: $folderName (ID: $folderId)")
+                                    
+                                    // Skip if folder with same ID exists
+                                    if (currentSnapshot.child("folders").child(folderId).exists()) {
+                                        Log.d("SettingsViewModel", "Skipping folder - ID exists: $folderId")
+                                        return@forEach
+                                    }
+                                    
+                                    // Skip if folder with same name exists
+                                    var nameExists = false
+                                    currentSnapshot.child("folders").children.forEach { existingFolder ->
+                                        val existingFolderData = existingFolder.getValue(folderType)
+                                        if (existingFolderData?.get("name") as? String == folderName) {
+                                            nameExists = true
+                                            Log.d("SettingsViewModel", "Skipping folder - name exists: $folderName")
+                                            return@forEach
+                                        }
+                                    }
+                                    
+                                    if (!nameExists) {
+                                        updates["folders/$folderId"] = folderData
+                                        newItemsCount++
+                                        Log.d("SettingsViewModel", "Adding new folder: $folderName")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("SettingsViewModel", "Error processing folder $folderId", e)
+                                }
+                            }
+
+                            // Process cards
+                            Log.d("SettingsViewModel", "Processing cards")
+                            importData["cards"]?.forEach { (cardId, cardData) ->
+                                try {
+                                    val cardMap = cardData as? Map<String, Any>
+                                    val cardLabel = cardMap?.get("label") as? String
+                                    val imageUrl = cardMap?.get("imageUrl") as? String
+                                    Log.d("SettingsViewModel", "Checking card: $cardLabel (ID: $cardId)")
+                                    
+                                    // Skip if card with same ID exists
+                                    if (currentSnapshot.child("cards").child(cardId).exists()) {
+                                        Log.d("SettingsViewModel", "Skipping card - ID exists: $cardId")
+                                        return@forEach
+                                    }
+                                    
+                                    // Skip if card with same label exists
+                                    var labelExists = false
+                                    currentSnapshot.child("cards").children.forEach { existingCard ->
+                                        val existingCardData = existingCard.getValue(cardType)
+                                        if (existingCardData?.get("label") as? String == cardLabel) {
+                                            labelExists = true
+                                            Log.d("SettingsViewModel", "Skipping card - label exists: $cardLabel")
+                                            return@forEach
+                                        }
+                                    }
+                                    
+                                    if (!labelExists) {
+                                        // If the image URL already exists in our database, we can safely use it
+                                        if (imageUrl != null && existingImageUrls.contains(imageUrl)) {
+                                            Log.d("SettingsViewModel", "Card uses existing image URL: $imageUrl")
+                                        }
+                                        
+                                        updates["cards/$cardId"] = cardData
+                                        newItemsCount++
+                                        Log.d("SettingsViewModel", "Adding new card: $cardLabel")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("SettingsViewModel", "Error processing card $cardId", e)
+                                }
+                            }
+
+                            Log.d("SettingsViewModel", "Found $newItemsCount new items to import")
+                            if (updates.isEmpty()) {
+                                Log.d("SettingsViewModel", "No new items to import")
+                                showOperationResult(true, "No new items to import")
+                                return@addOnSuccessListener
+                            }
+
+                            // Apply the updates
+                            Log.d("SettingsViewModel", "Applying updates to database")
+                            Firebase.database.reference.child("users").child(userId)
+                                .updateChildren(updates)
+                                .addOnSuccessListener {
+                                    Log.d("SettingsViewModel", "Import successful")
+                                    loadUserSettings()
+                                    showOperationResult(true, "Successfully imported $newItemsCount new items")
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("SettingsViewModel", "Import failed", e)
+                                    showOperationResult(false, "Failed to import data: ${e.message}")
+                                }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("SettingsViewModel", "Failed to get current user data", e)
+                            showOperationResult(false, "Failed to get current user data")
+                        }
+                } catch (e: Exception) {
+                    Log.e("SettingsViewModel", "Failed to parse JSON", e)
+                    showOperationResult(false, "Invalid JSON format")
+                }
+            } ?: run {
+                Log.e("SettingsViewModel", "Failed to read import file")
+                showOperationResult(false, "Failed to read import file")
             }
         } catch (e: Exception) {
             Log.e("SettingsViewModel", "Import failed", e)
+            showOperationResult(false, "Failed to import data: ${e.message}")
         }
+    }
+
+    fun importFromUserId(context: Context, sourceUserId: String) {
+        val currentUserId = AuthenticationManager.getCurrentUserId() ?: return
+        try {
+            // First check if the source user allows data sharing
+            Firebase.database.reference.child("users").child(sourceUserId).child("settings").child("allowDataSharing")
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val allowsSharing = snapshot.getValue(Boolean::class.java) ?: false
+                    
+                    if (!allowsSharing) {
+                        showOperationResult(false, "This user has not enabled data sharing")
+                        return@addOnSuccessListener
+                    }
+
+                    // If sharing is allowed, get both users' data
+                    Firebase.database.reference.child("users").child(sourceUserId)
+                        .get()
+                        .addOnSuccessListener { sourceSnapshot ->
+                            if (!sourceSnapshot.exists()) {
+                                showOperationResult(false, "User not found")
+                                return@addOnSuccessListener
+                            }
+
+                            // Get current user's data
+                            Firebase.database.reference.child("users").child(currentUserId)
+                                .get()
+                                .addOnSuccessListener { currentSnapshot ->
+                                    val updates = mutableMapOf<String, Any>()
+                                    var newItemsCount = 0
+
+                                    // Process folders
+                                    sourceSnapshot.child("folders").children.forEach { sourceFolder ->
+                                        val folderId = sourceFolder.key ?: return@forEach
+                                        if (!currentSnapshot.child("folders").child(folderId).exists()) {
+                                            updates["folders/$folderId"] = sourceFolder.value ?: return@forEach
+                                            newItemsCount++
+                                        }
+                                    }
+
+                                    // Process cards
+                                    sourceSnapshot.child("cards").children.forEach { sourceCard ->
+                                        val cardId = sourceCard.key ?: return@forEach
+                                        if (!currentSnapshot.child("cards").child(cardId).exists()) {
+                                            updates["cards/$cardId"] = sourceCard.value ?: return@forEach
+                                            newItemsCount++
+                                        }
+                                    }
+
+                                    if (updates.isEmpty()) {
+                                        showOperationResult(true, "No new items to import")
+                                        return@addOnSuccessListener
+                                    }
+
+                                    // Apply the updates
+                                    Firebase.database.reference.child("users").child(currentUserId)
+                                        .updateChildren(updates)
+                                        .addOnSuccessListener {
+                                            Log.d("SettingsViewModel", "Import from user ID successful")
+                                            loadUserSettings()
+                                            showOperationResult(true, "Successfully imported $newItemsCount new items")
+                                        }
+                                        .addOnFailureListener { e ->
+                                            Log.e("SettingsViewModel", "Import from user ID failed", e)
+                                            showOperationResult(false, "Failed to import data: ${e.message}")
+                                        }
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("SettingsViewModel", "Failed to get current user data", e)
+                                    showOperationResult(false, "Failed to get current user data")
+                                }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("SettingsViewModel", "Failed to get source user data", e)
+                            showOperationResult(false, "Failed to get source user data. Please check if the User ID is correct.")
+                        }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("SettingsViewModel", "Failed to check sharing permission", e)
+                    showOperationResult(false, "Failed to check sharing permission. Please check if the User ID is correct.")
+                }
+        } catch (e: Exception) {
+            Log.e("SettingsViewModel", "Import from user ID failed", e)
+            showOperationResult(false, "Failed to import data: ${e.message}")
+        }
+    }
+
+    fun getUserDisplayId(): String? {
+        return AuthenticationManager.getCurrentUserId()
     }
 }

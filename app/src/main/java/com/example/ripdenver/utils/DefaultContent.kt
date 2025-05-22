@@ -87,8 +87,8 @@ object DefaultContent {
             "vocalization" to "Kain",
             "color" to "#00FF00",
             "folderId" to "",
-            "cloudinaryUrl" to "http://res.cloudinary.com/dj6hbreus/image/upload/v1747794356/aac_cards/bbj5ppt00ycrlwnxsa24.png",
-            "cloudinaryPublicId" to "aac_cards/bbj5ppt00ycrlwnxsa24"
+            "cloudinaryUrl" to "http://res.cloudinary.com/dj6hbreus/image/upload/v1747877035/aac_cards/fhfvoywzalfn7zd5g0md.png",
+            "cloudinaryPublicId" to "aac_cards/fhfvoywzalfn7zd5g0md"
         ),
         mapOf(
             "label" to "Inom",
@@ -135,8 +135,8 @@ object DefaultContent {
             "vocalization" to "Saan",
             "color" to "#0000FF",  // Blue (Question)
             "folderId" to "",
-            "cloudinaryUrl" to "http://res.cloudinary.com/dj6hbreus/image/upload/v1747794345/aac_cards/bxpsh6zbtcjagv0jgojc.png",
-            "cloudinaryPublicId" to "aac_cards/bxpsh6zbtcjagv0jgojc"
+            "cloudinaryUrl" to "http://res.cloudinary.com/dj6hbreus/image/upload/v1747877051/aac_cards/zndwd4zqn5pcozaelfuz.png",
+            "cloudinaryPublicId" to "aac_cards/zndwd4zqn5pcozaelfuz"
         ),
         mapOf(
             "label" to "Sino",

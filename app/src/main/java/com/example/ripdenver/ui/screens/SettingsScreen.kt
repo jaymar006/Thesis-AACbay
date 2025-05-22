@@ -1,5 +1,9 @@
 package com.example.ripdenver.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -20,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.outlined.Dashboard
@@ -39,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -63,6 +69,11 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit
 ) {
     var showGuideDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
+    var showUserIdInputDialog by remember { mutableStateOf(false) }
+    var showUserIdDisplayDialog by remember { mutableStateOf(false) }
+    var userIdInput by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
@@ -161,6 +172,36 @@ fun SettingsScreen(
                 title = "Data Management",
                 icon = Icons.Outlined.Storage
             ) {
+                // Data Sharing Switch
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Allow Data Sharing",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Pahintulutan ang pag-export ng data mula sa device na ito",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewModel.allowDataSharing.value,
+                        onCheckedChange = { viewModel.toggleDataSharing(it) }
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+
                 // Export Data List Item
                 Column(
                     modifier = Modifier
@@ -178,7 +219,7 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
-                        onClick = { viewModel.exportDatabase(context) },
+                        onClick = { showExportDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
@@ -216,7 +257,7 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
-                        onClick = { filePicker.launch("application/json") },
+                        onClick = { showImportDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary
@@ -307,6 +348,220 @@ fun SettingsScreen(
                     ) {
                         Text("Kanselahin")
                     }
+                }
+            }
+        )
+    }
+
+    // Export Dialog
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            title = { Text("Export Data") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.exportDatabase(context)
+                            showExportDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Outlined.FileUpload,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Export as JSON File")
+                    }
+                    Button(
+                        onClick = {
+                            showExportDialog = false
+                            showUserIdDisplayDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Outlined.Storage,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Export via User ID")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showExportDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // User ID Display Dialog
+    if (showUserIdDisplayDialog) {
+        AlertDialog(
+            onDismissRequest = { showUserIdDisplayDialog = false },
+            title = { Text("Your User ID") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Share this ID with others to let them import your data:",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            viewModel.getUserDisplayId() ?: "Not available",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("User ID", viewModel.getUserDisplayId())
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "User ID copied to clipboard", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = "Copy User ID",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showUserIdDisplayDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    // Import Dialog
+    if (showImportDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportDialog = false },
+            title = { Text("Import Data") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            filePicker.launch("application/json")
+                            showImportDialog = false
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Outlined.FileDownload,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Import from JSON File")
+                    }
+                    Button(
+                        onClick = {
+                            showImportDialog = false
+                            showUserIdInputDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Outlined.Storage,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Import via User ID")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showImportDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // User ID Input Dialog
+    if (showUserIdInputDialog) {
+        AlertDialog(
+            onDismissRequest = { showUserIdInputDialog = false },
+            title = { Text("Enter User ID") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextField(
+                        value = userIdInput,
+                        onValueChange = { userIdInput = it },
+                        label = { Text("User ID") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (userIdInput.isNotEmpty()) {
+                            viewModel.importFromUserId(context, userIdInput)
+                            showUserIdInputDialog = false
+                            userIdInput = ""
+                        }
+                    }
+                ) {
+                    Text("Import")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUserIdInputDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Operation Status Dialog
+    if (viewModel.showOperationStatus.value) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissOperationStatus() },
+            title = {
+                Text(
+                    if (viewModel.isOperationSuccess.value) "Success" else "Error",
+                    color = if (viewModel.isOperationSuccess.value) 
+                        MaterialTheme.colorScheme.primary 
+                    else 
+                        MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(viewModel.operationMessage.value)
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissOperationStatus() }) {
+                    Text("OK")
                 }
             }
         )
