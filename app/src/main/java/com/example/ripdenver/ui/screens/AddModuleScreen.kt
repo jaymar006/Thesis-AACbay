@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -27,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.AlertDialog
@@ -60,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -93,8 +96,6 @@ fun AddModuleScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedSymbolUrl: String? by remember { mutableStateOf(null) }
 
-
-
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var showSymbolSearchDialog by remember { mutableStateOf(false) }
 
@@ -102,10 +103,8 @@ fun AddModuleScreen(
     val onPreviewClick = {
         if (uiState.isCardSelected) {
             showImageSourceDialog = true
-
         }
     }
-
 
     LaunchedEffect(Unit) {
         viewModel.loadAllPictograms()
@@ -117,8 +116,6 @@ fun AddModuleScreen(
         selectedSymbolUrl = imageUrl // <-- Store image URL
         isLoading = false
     }
-
-
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -137,6 +134,61 @@ fun AddModuleScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            // Save logic (moved from below preview)
+                            scope.launch {
+                                isLoading = true
+                                if (uiState.isCardSelected) {
+                                    if (selectedSymbolUrl != null) {
+                                        viewModel.handleSymbolSelection(
+                                            context = context,
+                                            imageUrl = selectedSymbolUrl!!,
+                                            onSuccess = { urlAndPublicId ->
+                                                viewModel.updateCardImage(urlAndPublicId)
+                                                viewModel.saveCard(context) {
+                                                    isLoading = false
+                                                    mainViewModel.sortItems(mainViewModel.lastSortType.value)
+                                                    onSaveComplete()
+                                                }
+                                            },
+                                            onError = { error ->
+                                                errorMessage = error
+                                                isLoading = false
+                                            }
+                                        )
+                                    } else {
+                                        viewModel.saveCard(context) {
+                                            isLoading = false
+                                            mainViewModel.sortItems(mainViewModel.lastSortType.value)
+                                            onSaveComplete()
+                                        }
+                                    }
+                                } else {
+                                    viewModel.saveFolder()
+                                    isLoading = false
+                                    mainViewModel.sortItems(mainViewModel.lastSortType.value)
+                                    onSaveComplete()
+                                }
+                            }
+                        },
+                        enabled = !isLoading && when {
+                            uiState.isCardSelected -> uiState.cardLabel.isNotBlank()
+                            else -> uiState.folderLabel.isNotBlank()
+                        }
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.Check, contentDescription = "Save")
+                        }
+                    }
                 }
             )
         }
@@ -146,7 +198,8 @@ fun AddModuleScreen(
                 .padding(padding)
                 .fillMaxSize()
                 .horizontalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // LEFT SIDE: PREVIEW AND SAVE BUTTON ==============================
             Column(
@@ -250,64 +303,6 @@ fun AddModuleScreen(
                         }
                     }
                 }
-
-                // SAVE BUTTON under the preview
-                Button(
-                    onClick = {
-                        scope.launch {
-                            isLoading = true
-                            if (uiState.isCardSelected) {
-                                if (selectedSymbolUrl != null) {
-                                    // Handle symbol selection
-                                    viewModel.handleSymbolSelection(
-                                        context = context,
-                                        imageUrl = selectedSymbolUrl!!,
-                                        onSuccess = { urlAndPublicId ->
-                                            viewModel.updateCardImage(urlAndPublicId)
-                                            viewModel.saveCard(context) {
-                                                isLoading = false
-                                                mainViewModel.sortItems(mainViewModel.lastSortType.value)
-                                                onSaveComplete()
-                                            }
-                                        },
-                                        onError = { error ->
-                                            errorMessage = error
-                                            isLoading = false
-                                        }
-                                    )
-                                } else {
-                                    // Handle gallery image or direct save
-                                    viewModel.saveCard(context) {
-                                        isLoading = false
-                                        mainViewModel.sortItems(mainViewModel.lastSortType.value)
-                                        onSaveComplete()
-                                    }
-                                }
-                            } else {
-                                viewModel.saveFolder()
-                                isLoading = false
-                                mainViewModel.sortItems(mainViewModel.lastSortType.value)
-                                onSaveComplete()
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .padding(top = 16.dp),
-                    enabled = !isLoading && when {
-                        uiState.isCardSelected -> uiState.cardLabel.isNotBlank()
-                        else -> uiState.folderLabel.isNotBlank()
-                    }
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text("Save")
-                    }
-                }
             }
 
             // RIGHT SIDE: FORM FIELDS ==============================
@@ -409,14 +404,40 @@ fun AddModuleScreen(
         }
 
         if (showSymbolSearchDialog) {
-            SymbolSearchDialog(
-                viewModel = viewModel,
-                onDismiss = { showSymbolSearchDialog = false },
-                onSymbolSelected = { imageUrl ->
-                    onSymbolSelected(imageUrl)
-                    showSymbolSearchDialog = false
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0x80000000))
+                    .zIndex(2f),
+                contentAlignment = Alignment.Center
+            ) {
+                // Background clickable area
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        ) { showSymbolSearchDialog = false }
+                )
+                // Modal content
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = 8.dp,
+                    modifier = Modifier
+                        .widthIn(max = 700.dp)
+                        .fillMaxWidth(0.98f)
+                ) {
+                    SymbolSearchDialogContent(
+                        viewModel = viewModel,
+                        onDismiss = { showSymbolSearchDialog = false },
+                        onSymbolSelected = { imageUrl ->
+                            onSymbolSelected(imageUrl)
+                            showSymbolSearchDialog = false
+                        }
+                    )
                 }
-            )
+            }
         }
     }
 }
@@ -462,7 +483,6 @@ public fun ColorSelectionRow(
         }
     }
 }
-
 
 @Composable
 fun PictogramItem(
@@ -543,67 +563,63 @@ fun ImageSourceDialog(
         }
     )
 }
+
 @Composable
-fun SymbolSearchDialog(
+fun SymbolSearchDialogContent(
     viewModel: AddModuleViewModel,
     onDismiss: () -> Unit,
     onSymbolSelected: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-
-    CustomDialog(onDismissRequest = onDismiss) {
-        Column(
+    Column(
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxWidth()
+    ) {
+        Text(
+            text = "Pumili ng Simbolo",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { query ->
+                searchQuery = query
+                viewModel.searchPictograms(query)
+            },
+            label = { Text("Search Symbols(english)") },
             modifier = Modifier
-                .padding(16.dp)
                 .fillMaxWidth()
-        ) {
-            Text(
-                text = "Pumili ng Simbolo",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { query ->
-                    searchQuery = query
-                    viewModel.searchPictograms(query)
-                },
-                label = { Text("Search Symbols(english)") },
+                .padding(bottom = 16.dp)
+        )
+        if (viewModel.isLoadingPictograms) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
                 modifier = Modifier
+                    .height(600.dp)
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            )
-
-            if (viewModel.isLoadingPictograms) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier
-                        .height(500.dp)
-                        .fillMaxWidth()
-                ) {
-                    items(viewModel.pictograms.size) { index ->
-                        val pictogram = viewModel.pictograms[index]
-                        PictogramItem(
-                            pictogram = pictogram,
-                            onClick = {
-                                onSymbolSelected(pictogram.getImageUrl(500))
-                                onDismiss()
-                            }
-                        )
-                    }
+                    .padding(horizontal = 4.dp)
+            ) {
+                items(viewModel.pictograms.size) { index ->
+                    val pictogram = viewModel.pictograms[index]
+                    PictogramItem(
+                        pictogram = pictogram,
+                        onClick = {
+                            onSymbolSelected(pictogram.getImageUrl(500))
+                            onDismiss()
+                        }
+                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Cancel")
-            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Cancel")
         }
     }
 }
