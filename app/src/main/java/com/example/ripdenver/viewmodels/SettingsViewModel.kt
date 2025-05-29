@@ -29,6 +29,18 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _columnCount = mutableStateOf(6)
     val columnCount: State<Int> = _columnCount
 
+    private val _boardImageSize = mutableStateOf("medium")
+    val boardImageSize: State<String> = _boardImageSize
+
+    private val _containerImageSize = mutableStateOf("medium")
+    val containerImageSize: State<String> = _containerImageSize
+
+    private val _boardTextSize = mutableStateOf("medium")
+    val boardTextSize: State<String> = _boardTextSize
+
+    private val _containerTextSize = mutableStateOf("medium")
+    val containerTextSize: State<String> = _containerTextSize
+
     val appVersion = "1.0.0" // Replace with actual version
 
     private val _showPredictions = mutableStateOf(true)
@@ -40,6 +52,10 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private var initialColumnCount = 6
     private var initialShowPredictions = true
     private var initialAllowDataSharing = false
+    private var initialBoardImageSize = "medium"
+    private var initialContainerImageSize = "medium"
+    private var initialBoardTextSize = "medium"
+    private var initialContainerTextSize = "medium"
 
     // Operation status states
     private val _showOperationStatus = mutableStateOf(false)
@@ -81,6 +97,22 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
                     _allowDataSharing.value = it
                     initialAllowDataSharing = it
                 }
+                snapshot.child("boardImageSize").getValue(String::class.java)?.let {
+                    _boardImageSize.value = it
+                    initialBoardImageSize = it
+                }
+                snapshot.child("containerImageSize").getValue(String::class.java)?.let {
+                    _containerImageSize.value = it
+                    initialContainerImageSize = it
+                }
+                snapshot.child("boardTextSize").getValue(String::class.java)?.let {
+                    _boardTextSize.value = it
+                    initialBoardTextSize = it
+                }
+                snapshot.child("containerTextSize").getValue(String::class.java)?.let {
+                    _containerTextSize.value = it
+                    initialContainerTextSize = it
+                }
             }
             .addOnFailureListener { e ->
                 Log.e("SettingsViewModel", "Failed to load settings", e)
@@ -90,7 +122,11 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private fun checkForChanges() {
         _hasUnsavedChanges.value = _columnCount.value != initialColumnCount ||
                 _showPredictions.value != initialShowPredictions ||
-                _allowDataSharing.value != initialAllowDataSharing
+                _allowDataSharing.value != initialAllowDataSharing ||
+                _boardImageSize.value != initialBoardImageSize ||
+                _containerImageSize.value != initialContainerImageSize ||
+                _boardTextSize.value != initialBoardTextSize ||
+                _containerTextSize.value != initialContainerTextSize
     }
 
     fun togglePredictions(enabled: Boolean) {
@@ -117,6 +153,26 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    fun setBoardImageSize(size: String) {
+        _boardImageSize.value = size
+        checkForChanges()
+    }
+
+    fun setContainerImageSize(size: String) {
+        _containerImageSize.value = size
+        checkForChanges()
+    }
+
+    fun setBoardTextSize(size: String) {
+        _boardTextSize.value = size
+        checkForChanges()
+    }
+
+    fun setContainerTextSize(size: String) {
+        _containerTextSize.value = size
+        checkForChanges()
+    }
+
     fun saveSettings() {
         viewModelScope.launch {
             val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
@@ -126,14 +182,27 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
                         mapOf(
                             "columnCount" to _columnCount.value,
                             "showPredictions" to _showPredictions.value,
-                            "allowDataSharing" to _allowDataSharing.value
+                            "allowDataSharing" to _allowDataSharing.value,
+                            "boardImageSize" to _boardImageSize.value,
+                            "containerImageSize" to _containerImageSize.value,
+                            "boardTextSize" to _boardTextSize.value,
+                            "containerTextSize" to _containerTextSize.value
                         )
                     )
                     .addOnSuccessListener {
+                        // Update initial values to match current values
                         initialColumnCount = _columnCount.value
                         initialShowPredictions = _showPredictions.value
                         initialAllowDataSharing = _allowDataSharing.value
+                        initialBoardImageSize = _boardImageSize.value
+                        initialContainerImageSize = _containerImageSize.value
+                        initialBoardTextSize = _boardTextSize.value
+                        initialContainerTextSize = _containerTextSize.value
                         _hasUnsavedChanges.value = false
+                        
+                        // Force a refresh of the settings
+                        loadUserSettings()
+                        
                         Log.d("SettingsViewModel", "Settings saved successfully")
                     }
                     .addOnFailureListener { e ->

@@ -34,7 +34,7 @@ class MainViewModel : ViewModel() {
     private val database = Firebase.database.reference
 
     // Data States
-    private val _predictedCards = MutableStateFlow<List<Card>>(emptyList())
+    private val _predictedCards = MutableStateFlow<List<Pair<Card, Float>>>(emptyList())
     private val _cards = MutableStateFlow<List<Card>>(emptyList())
     private val _folders = MutableStateFlow<List<Folder>>(emptyList())
     private val _selectedCards = MutableStateFlow<List<Card>>(emptyList())
@@ -63,6 +63,18 @@ class MainViewModel : ViewModel() {
 
     private val _showPredictions = MutableStateFlow(true)
     val showPredictions = _showPredictions.asStateFlow()
+
+    private val _boardImageSize = MutableStateFlow("medium")
+    val boardImageSize = _boardImageSize.asStateFlow()
+
+    private val _containerImageSize = MutableStateFlow("medium")
+    val containerImageSize = _containerImageSize.asStateFlow()
+
+    private val _boardTextSize = MutableStateFlow("medium")
+    val boardTextSize = _boardTextSize.asStateFlow()
+
+    private val _containerTextSize = MutableStateFlow("medium")
+    val containerTextSize = _containerTextSize.asStateFlow()
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
     private enum class ItemOrder {
@@ -128,11 +140,28 @@ class MainViewModel : ViewModel() {
         database.child("users").child(userId).child("settings")
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    snapshot.child("columnCount").getValue(Int::class.java)?.let {
-                        _columnCount.value = it
-                    }
-                    snapshot.child("showPredictions").getValue(Boolean::class.java)?.let {
-                        _showPredictions.value = it
+                    try {
+                        snapshot.child("columnCount").getValue(Int::class.java)?.let {
+                            _columnCount.value = it
+                        }
+                        snapshot.child("showPredictions").getValue(Boolean::class.java)?.let {
+                            _showPredictions.value = it
+                        }
+                        snapshot.child("boardImageSize").getValue(String::class.java)?.let {
+                            _boardImageSize.value = it
+                        }
+                        snapshot.child("containerImageSize").getValue(String::class.java)?.let {
+                            _containerImageSize.value = it
+                        }
+                        snapshot.child("boardTextSize").getValue(String::class.java)?.let {
+                            _boardTextSize.value = it
+                        }
+                        snapshot.child("containerTextSize").getValue(String::class.java)?.let {
+                            _containerTextSize.value = it
+                        }
+                        Log.d("MainViewModel", "Settings updated: boardImageSize=${_boardImageSize.value}, containerImageSize=${_containerImageSize.value}")
+                    } catch (e: Exception) {
+                        Log.e("MainViewModel", "Error updating settings", e)
                     }
                 }
 
@@ -158,24 +187,29 @@ class MainViewModel : ViewModel() {
                 .endAt("${lastCardId}_\uf8ff")
                 .get()
                 .addOnSuccessListener { snapshot ->
-                    val predictedCardIds = mutableSetOf<String>()
+                    // Calculate total frequency and card frequencies
+                    var totalFrequency = 0
+                    val cardFrequencies = mutableMapOf<String, Int>()
+
                     snapshot.children.forEach { ngramSnapshot ->
                         val ngram = ngramSnapshot.getValue(Ngram::class.java)
-                        ngram?.sequence?.getOrNull(1)?.let { nextCardId ->
-                            predictedCardIds.add(nextCardId)
+                        ngram?.let {
+                            val nextCardId = it.sequence.getOrNull(1)
+                            if (nextCardId != null) {
+                                val frequency = it.frequency
+                                totalFrequency += frequency
+                                cardFrequencies[nextCardId] = (cardFrequencies[nextCardId] ?: 0) + frequency
+                            }
                         }
                     }
 
-                    val predictions = predictedCardIds
-                        .mapNotNull { id -> cards.value.find { it.id == id } }
-                        .sortedByDescending { card ->
-                            snapshot.children
-                                .firstOrNull {
-                                    it.getValue(Ngram::class.java)?.sequence?.get(1) == card.id
-                                }
-                                ?.getValue(Ngram::class.java)
-                                ?.frequency ?: 0
-                        }
+                    // Convert frequencies to probabilities and create predictions
+                    val predictions = cardFrequencies.mapNotNull { (cardId, frequency) ->
+                        val card = cards.value.find { it.id == cardId }
+                        if (card != null && totalFrequency > 0) {
+                            card to (frequency.toFloat() / totalFrequency)
+                        } else null
+                    }.sortedByDescending { it.second }
 
                     _predictedCards.value = predictions
                 }

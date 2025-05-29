@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,17 +15,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.ripdenver.ui.screens.AddModuleScreen
+import com.example.ripdenver.ui.screens.CrashLogsScreen
 import com.example.ripdenver.ui.screens.DeveloperScreen
 import com.example.ripdenver.ui.screens.EditCardScreen
 import com.example.ripdenver.ui.screens.EditFolderScreen
 import com.example.ripdenver.ui.screens.FolderScreen
+import com.example.ripdenver.ui.screens.HelpScreen
 import com.example.ripdenver.ui.screens.MainScreen
 import com.example.ripdenver.ui.screens.NgramVisualizationScreen
 import com.example.ripdenver.ui.screens.RecordingScreen
 import com.example.ripdenver.ui.screens.SettingsScreen
 import com.example.ripdenver.ui.screens.StorageManagementScreen
-import com.example.ripdenver.ui.screens.CrashLogsScreen
-import com.example.ripdenver.ui.screens.HelpScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
@@ -39,7 +38,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CloudinaryManager.initialize(this)
-        enableEdgeToEdge()
         setContent {
             RIPDenverTheme {
                 val navController = rememberNavController()

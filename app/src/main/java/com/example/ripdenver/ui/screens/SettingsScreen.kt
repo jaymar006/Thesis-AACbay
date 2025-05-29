@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
@@ -39,6 +41,8 @@ import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,7 +71,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.compose.rememberNavController
 import com.example.ripdenver.viewmodels.SettingsViewModel
 import kotlinx.coroutines.delay
 
@@ -153,6 +156,42 @@ fun SettingsScreen(
                     value = viewModel.columnCount.value,
                     onDecrease = { viewModel.decrementColumns() },
                     onIncrease = { viewModel.incrementColumns() }
+                )
+
+                // Board Image Size
+                SettingsDropdownRow(
+                    title = "Image Size (Board)",
+                    subtitle = "Laki ng letrato sa board",
+                    value = viewModel.boardImageSize.value,
+                    options = listOf("small", "medium", "large"),
+                    onOptionSelected = { viewModel.setBoardImageSize(it) }
+                )
+
+                // Container Image Size
+                SettingsDropdownRow(
+                    title = "Image Size (Containers)",
+                    subtitle = "Laki ng letrato sa containers",
+                    value = viewModel.containerImageSize.value,
+                    options = listOf("small", "medium", "large"),
+                    onOptionSelected = { viewModel.setContainerImageSize(it) }
+                )
+
+                // Board Text Size
+                SettingsDropdownRow(
+                    title = "Text Size (Board)",
+                    subtitle = "Laki ng text sa board",
+                    value = viewModel.boardTextSize.value,
+                    options = listOf("small", "medium", "large"),
+                    onOptionSelected = { viewModel.setBoardTextSize(it) }
+                )
+
+                // Container Text Size
+                SettingsDropdownRow(
+                    title = "Text Size (Containers)",
+                    subtitle = "Laki ng text sa containers",
+                    value = viewModel.containerTextSize.value,
+                    options = listOf("small", "medium", "large"),
+                    onOptionSelected = { viewModel.setContainerTextSize(it) }
                 )
 
                 // Show Predictions switch
@@ -792,6 +831,70 @@ fun SettingsSliderRow(
                     contentDescription = "Increase",
                     tint = MaterialTheme.colorScheme.primary
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsDropdownRow(
+    title: String,
+    subtitle: String,
+    value: String,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit
+) {
+    var showDropdown by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Box {
+            Button(
+                onClick = { showDropdown = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Text(
+                    text = value.capitalize(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Select size",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            DropdownMenu(
+                expanded = showDropdown,
+                onDismissRequest = { showDropdown = false }
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.capitalize()) },
+                        onClick = {
+                            onOptionSelected(option)
+                            showDropdown = false
+                        }
+                    )
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.ripdenver.AACbayApplication
 import com.example.ripdenver.models.Card
@@ -70,6 +72,7 @@ import com.example.ripdenver.models.Folder
 import com.example.ripdenver.ui.components.CardItem
 import com.example.ripdenver.ui.components.FolderItem
 import com.example.ripdenver.utils.AuthenticationManager
+import com.example.ripdenver.viewmodels.DeveloperViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 import com.example.ripdenver.viewmodels.SortType
 import com.google.firebase.database.ktx.database
@@ -101,6 +104,7 @@ fun MainScreen(
     onToggleItemForDeletion: (Any) -> Unit,
     onDeleteSelectedItems: () -> Unit,
     mainViewModel: MainViewModel,
+    developerViewModel: DeveloperViewModel = hiltViewModel()
 ) {
 
 
@@ -444,6 +448,28 @@ fun MainScreen(
 }
 
 @Composable
+private fun SelectedCardItem(
+    card: Card,
+    modifier: Modifier = Modifier,
+    mainViewModel: MainViewModel = hiltViewModel()
+) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .padding(4.dp)
+            .then(modifier)
+    ) {
+        CardItem(
+            card = card,
+            onClick = {},
+            modifier = Modifier.fillMaxSize(),
+            isInContainer = true,
+            mainViewModel = mainViewModel
+        )
+    }
+}
+
+@Composable
 fun SelectionContainer(
     selectedItems: List<Card>,
     onClearOne: () -> Unit,
@@ -464,7 +490,6 @@ fun SelectionContainer(
         (context.applicationContext as AACbayApplication).ttsManager
     }
     val database = Firebase.database.reference
-
 
     LaunchedEffect(selectedItems.size) {
         if (selectedItems.isNotEmpty()) {
@@ -540,12 +565,13 @@ fun SelectionContainer(
             } else {
                 LazyRow(
                     state = lazyListState,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.height(80.dp)
                 ) {
                     items(selectedItems) { card ->
                         SelectedCardItem(
                             card = card,
-                            modifier = Modifier.size(60.dp)
+                            mainViewModel = mainViewModel
                         )
                     }
                 }
@@ -585,7 +611,6 @@ fun SelectionContainer(
                 DropdownMenuItem(
                     text = { Text("I-edit ang Kard/Folder") },
                     onClick = {
-                        Log.d("MainScreen", "Edit card clicked")
                         onToggleEditMode(true)
                         showDropdownMenu.value = false
                     },
@@ -611,22 +636,6 @@ fun SelectionContainer(
         }
     }
 }
-
-@Composable
-private fun SelectedCardItem(
-    card: Card,
-    modifier: Modifier = Modifier
-) {
-    Box(
-    ) {
-        CardItem(
-            card = card,
-            onClick = {},
-            modifier.fillMaxSize()
-        )
-    }
-}
-
 
 @Composable
 private fun ControlButtons(
@@ -799,27 +808,24 @@ private fun FolderListItem(
 fun PredictiveContainer(
     selectedCards: List<Card>,
     onCardClick: (Card) -> Unit,
-    modifier: Modifier = Modifier,
     mainViewModel: MainViewModel
 ) {
     val predictedCards = mainViewModel.predictedCards.collectAsState().value
 
-    // Add logging
     LaunchedEffect(selectedCards) {
         android.util.Log.d("PredictiveContainer", "Selected cards: ${selectedCards.map { it.id }}")
         mainViewModel.predictNextCards(selectedCards)
     }
 
-    // Log predictions
     LaunchedEffect(predictedCards) {
-        android.util.Log.d("PredictiveContainer", "Predicted cards: ${predictedCards.map { it.id }}")
+        android.util.Log.d("PredictiveContainer", "Predicted cards: ${predictedCards.map { it.first.id }}")
     }
 
     if (selectedCards.isNotEmpty() && predictedCards.isNotEmpty()) {
         val lazyListState = rememberLazyListState()
 
         Column(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
                 .padding(horizontal = 5.dp)
@@ -830,18 +836,25 @@ fun PredictiveContainer(
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 LazyRow(
                     state = lazyListState,
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(predictedCards) { card ->
-                        CardItem(
-                            card = card,
-                            onClick = { onCardClick(card) },
-                            modifier = Modifier.size(60.dp)
-                        )
+                    items(predictedCards) { (card, probability) ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .padding(4.dp)
+                        ) {
+                            CardItem(
+                                card = card,
+                                onClick = { onCardClick(card) },
+                                isInContainer = true,
+                                mainViewModel = mainViewModel
+                            )
+                        }
                     }
                 }
             }
