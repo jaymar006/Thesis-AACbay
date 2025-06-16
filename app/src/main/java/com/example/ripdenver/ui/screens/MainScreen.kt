@@ -394,7 +394,8 @@ fun MainScreen(
                                                 else -> onCardClick(item)
                                             }
                                         },
-                                        onToggleDelete = { onToggleItemForDeletion(item) }
+                                        onToggleDelete = { onToggleItemForDeletion(item) },
+                                        mainViewModel = mainViewModel
                                     )
 
                                     is Folder -> FolderListItem(
@@ -698,7 +699,8 @@ fun CardListItem(
     isDragging: Boolean,
     onClick: () -> Unit,
     onToggleDelete: () -> Unit,
-    onDragStart: () -> Unit = {}
+    onDragStart: () -> Unit = {},
+    mainViewModel: MainViewModel
 ) {
     val rotation = remember { Animatable(0f) }
 
@@ -733,7 +735,9 @@ fun CardListItem(
             CardItem(
                 card = card,
                 onClick = if (isDeleteMode) onToggleDelete else onClick,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                isInContainer = false,
+                mainViewModel = mainViewModel
             )
         }
 

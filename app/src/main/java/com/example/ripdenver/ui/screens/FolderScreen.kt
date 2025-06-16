@@ -134,6 +134,10 @@ fun FolderScreen(
                         Box {
                             CardListItem(
                                 card = card,
+                                isEditMode = isEditMode,
+                                isDeleteMode = isDeleteMode,
+                                isSelected = card in itemsToDelete,
+                                isDragging = false,
                                 onClick = {
                                     if (isDeleteMode) {
                                         onToggleItemForDeletion(card)
@@ -144,12 +148,9 @@ fun FolderScreen(
                                         onCardClick(card)
                                     }
                                 },
-                                isDeleteMode = isDeleteMode,
-                                isSelected = card in itemsToDelete,
-                                isDragging = false,
-                                isEditMode = isEditMode,
                                 onToggleDelete = { onToggleItemForDeletion(card) },
-                                onDragStart = {} // Add this parameter
+                                onDragStart = {},
+                                mainViewModel = mainViewModel
                             )
                             if (isDeleteMode) {
                                 Checkbox(

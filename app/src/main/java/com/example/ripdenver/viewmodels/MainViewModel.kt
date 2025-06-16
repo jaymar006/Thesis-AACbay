@@ -64,16 +64,16 @@ class MainViewModel : ViewModel() {
     private val _showPredictions = MutableStateFlow(true)
     val showPredictions = _showPredictions.asStateFlow()
 
-    private val _boardImageSize = MutableStateFlow("medium")
+    private val _boardImageSize = MutableStateFlow("katamtaman")
     val boardImageSize = _boardImageSize.asStateFlow()
 
-    private val _containerImageSize = MutableStateFlow("medium")
+    private val _containerImageSize = MutableStateFlow("katamtaman")
     val containerImageSize = _containerImageSize.asStateFlow()
 
-    private val _boardTextSize = MutableStateFlow("medium")
+    private val _boardTextSize = MutableStateFlow("katamtaman")
     val boardTextSize = _boardTextSize.asStateFlow()
 
-    private val _containerTextSize = MutableStateFlow("medium")
+    private val _containerTextSize = MutableStateFlow("katamtaman")
     val containerTextSize = _containerTextSize.asStateFlow()
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
@@ -149,17 +149,20 @@ class MainViewModel : ViewModel() {
                         }
                         snapshot.child("boardImageSize").getValue(String::class.java)?.let {
                             _boardImageSize.value = it
+                            Log.d("MainViewModel", "Board image size updated to: $it")
                         }
                         snapshot.child("containerImageSize").getValue(String::class.java)?.let {
                             _containerImageSize.value = it
+                            Log.d("MainViewModel", "Container image size updated to: $it")
                         }
                         snapshot.child("boardTextSize").getValue(String::class.java)?.let {
                             _boardTextSize.value = it
+                            Log.d("MainViewModel", "Board text size updated to: $it")
                         }
                         snapshot.child("containerTextSize").getValue(String::class.java)?.let {
                             _containerTextSize.value = it
+                            Log.d("MainViewModel", "Container text size updated to: $it")
                         }
-                        Log.d("MainViewModel", "Settings updated: boardImageSize=${_boardImageSize.value}, containerImageSize=${_containerImageSize.value}")
                     } catch (e: Exception) {
                         Log.e("MainViewModel", "Error updating settings", e)
                     }

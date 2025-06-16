@@ -3,6 +3,7 @@ package com.example.ripdenver.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -115,10 +116,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text("Mga Setting") },
                 navigationIcon = {
                     IconButton(onClick = { handleBackPress() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Bumalik")
                     }
                 },
                 actions = {
@@ -128,10 +129,10 @@ fun SettingsScreen(
                             onNavigateBack()
                         }
                     ) {
-                        Icon(Icons.Filled.Save, "Save settings")
+                        Icon(Icons.Filled.Save, "I-save ang mga setting")
                     }
                     IconButton(onClick = onNavigateToHelp) {
-                        Icon(Icons.AutoMirrored.Filled.Help, "Guide")
+                        Icon(Icons.AutoMirrored.Filled.Help, "Tulong")
                     }
                 }
             )
@@ -147,12 +148,12 @@ fun SettingsScreen(
         ) {
             // Board Layout Section
             SettingsSection(
-                title = "Board Settings",
+                title = "Mga Setting ng Board",
                 icon = Icons.Outlined.Dashboard
             ) {
                 // Column Count
                 SettingsSliderRow(
-                    title = "Column Count",
+                    title = "Bilang ng Hanay",
                     value = viewModel.columnCount.value,
                     onDecrease = { viewModel.decrementColumns() },
                     onIncrease = { viewModel.incrementColumns() }
@@ -160,37 +161,37 @@ fun SettingsScreen(
 
                 // Board Image Size
                 SettingsDropdownRow(
-                    title = "Image Size (Board)",
+                    title = "Laki ng Larawan (Board)",
                     subtitle = "Laki ng letrato sa board",
                     value = viewModel.boardImageSize.value,
-                    options = listOf("small", "medium", "large"),
+                    options = listOf("maliit", "katamtaman", "malaki"),
                     onOptionSelected = { viewModel.setBoardImageSize(it) }
                 )
 
                 // Container Image Size
                 SettingsDropdownRow(
-                    title = "Image Size (Containers)",
+                    title = "Laki ng Larawan (Containers)",
                     subtitle = "Laki ng letrato sa containers",
                     value = viewModel.containerImageSize.value,
-                    options = listOf("small", "medium", "large"),
+                    options = listOf("maliit", "katamtaman", "malaki"),
                     onOptionSelected = { viewModel.setContainerImageSize(it) }
                 )
 
                 // Board Text Size
                 SettingsDropdownRow(
-                    title = "Text Size (Board)",
+                    title = "Laki ng Text (Board)",
                     subtitle = "Laki ng text sa board",
                     value = viewModel.boardTextSize.value,
-                    options = listOf("small", "medium", "large"),
+                    options = listOf("maliit", "katamtaman", "malaki"),
                     onOptionSelected = { viewModel.setBoardTextSize(it) }
                 )
 
                 // Container Text Size
                 SettingsDropdownRow(
-                    title = "Text Size (Containers)",
+                    title = "Laki ng Text (Containers)",
                     subtitle = "Laki ng text sa containers",
                     value = viewModel.containerTextSize.value,
-                    options = listOf("small", "medium", "large"),
+                    options = listOf("maliit", "katamtaman", "malaki"),
                     onOptionSelected = { viewModel.setContainerTextSize(it) }
                 )
 
@@ -222,7 +223,7 @@ fun SettingsScreen(
             // Prediction Section
             // Data Section
             SettingsSection(
-                title = "Data Management",
+                title = "Pamamahala ng Data",
                 icon = Icons.Outlined.Storage
             ) {
                 // Data Sharing Switch
@@ -235,7 +236,7 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Allow Data Sharing",
+                            text = "Pahintulutan ang Pagbabahagi ng Data",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
@@ -262,11 +263,11 @@ fun SettingsScreen(
                         .padding(vertical = 4.dp)
                 ) {
                     Text(
-                        "Export Data",
+                        "I-save ang Data",
                         style = MaterialTheme.typography.titleSmall
                     )
                     Text(
-                        "I-export ang data mula sa device na ito",
+                        "I-save ang data mula sa device na ito",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -284,7 +285,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Export Data")
+                        Text("I-save ang Data")
                     }
                 }
 
@@ -300,11 +301,11 @@ fun SettingsScreen(
                         .padding(vertical = 4.dp)
                 ) {
                     Text(
-                        "Import Data",
+                        "I-load ang Data",
                         style = MaterialTheme.typography.titleSmall
                     )
                     Text(
-                        "Mag-import ng datos mula sa ibang device upang ito ay mailgay sa device na ito",
+                        "Mag-load ng data mula sa ibang device",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -322,14 +323,14 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Import Data")
+                        Text("I-load ang Data")
                     }
                 }
             }
 
             // About Section
             SettingsSection(
-                title = "About",
+                title = "Tungkol",
                 icon = Icons.Outlined.Info
             ) {
                 // Tutorial Button
@@ -343,7 +344,7 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            "App Tutorial",
+                            "Tutorial ng App",
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
@@ -354,7 +355,7 @@ fun SettingsScreen(
                     }
                     Icon(
                         Icons.Default.PlayArrow,
-                        contentDescription = "Start Tutorial",
+                        contentDescription = "Simulan ang Tutorial",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -373,19 +374,19 @@ fun SettingsScreen(
                             versionTapCount++
                             when (versionTapCount) {
                                 1 -> {
-                                    tapFeedbackMessage = "You're 4 taps away from developer tools"
+                                    tapFeedbackMessage = "4 na tap pa para sa developer tools"
                                     showTapFeedback = true
                                 }
                                 2 -> {
-                                    tapFeedbackMessage = "You're 3 taps away from developer tools"
+                                    tapFeedbackMessage = "3 na tap pa para sa developer tools"
                                     showTapFeedback = true
                                 }
                                 3 -> {
-                                    tapFeedbackMessage = "You're 2 taps away from developer tools"
+                                    tapFeedbackMessage = "2 na tap pa para sa developer tools"
                                     showTapFeedback = true
                                 }
                                 4 -> {
-                                    tapFeedbackMessage = "You're 1 tap away from developer tools"
+                                    tapFeedbackMessage = "1 tap pa para sa developer tools"
                                     showTapFeedback = true
                                 }
                                 5 -> {
@@ -399,7 +400,7 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "App Version",
+                        "Bersyon ng App",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
@@ -456,7 +457,7 @@ fun SettingsScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            title = { Text("Export Data") },
+            title = { Text("I-save ang Data") },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -475,7 +476,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Export as JSON File")
+                        Text("I-save bilang File")
                     }
                     Button(
                         onClick = {
@@ -490,13 +491,13 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Export via User ID")
+                        Text("I-save gamit ang User ID")
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showExportDialog = false }) {
-                    Text("Cancel")
+                    Text("Kanselahin")
                 }
             }
         )
@@ -506,14 +507,14 @@ fun SettingsScreen(
     if (showUserIdDisplayDialog) {
         AlertDialog(
             onDismissRequest = { showUserIdDisplayDialog = false },
-            title = { Text("Your User ID") },
+            title = { Text("Ang Iyong User ID") },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        "Share this ID with others to let them import your data:",
+                        "Ibahagi ang ID na ito sa iba para ma-import nila ang iyong data:",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Row(
@@ -522,7 +523,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            viewModel.getUserDisplayId() ?: "Not available",
+                            viewModel.getUserDisplayId() ?: "Hindi available",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -533,12 +534,12 @@ fun SettingsScreen(
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 val clip = ClipData.newPlainText("User ID", viewModel.getUserDisplayId())
                                 clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "User ID copied to clipboard", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Nakopya na ang User ID", Toast.LENGTH_SHORT).show()
                             }
                         ) {
                             Icon(
                                 Icons.Default.ContentCopy,
-                                contentDescription = "Copy User ID",
+                                contentDescription = "Kopyahin ang User ID",
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -547,7 +548,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showUserIdDisplayDialog = false }) {
-                    Text("Close")
+                    Text("Isara")
                 }
             }
         )
@@ -557,7 +558,7 @@ fun SettingsScreen(
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
-            title = { Text("Import Data") },
+            title = { Text("I-load ang Data") },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -576,7 +577,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Import from JSON File")
+                        Text("I-load mula sa File")
                     }
                     Button(
                         onClick = {
@@ -591,13 +592,13 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Import via User ID")
+                        Text("I-load gamit ang User ID")
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showImportDialog = false }) {
-                    Text("Cancel")
+                    Text("Kanselahin")
                 }
             }
         )
@@ -607,7 +608,7 @@ fun SettingsScreen(
     if (showUserIdInputDialog) {
         AlertDialog(
             onDismissRequest = { showUserIdInputDialog = false },
-            title = { Text("Enter User ID") },
+            title = { Text("Ilagay ang User ID") },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -631,12 +632,12 @@ fun SettingsScreen(
                         }
                     }
                 ) {
-                    Text("Import")
+                    Text("I-load")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showUserIdInputDialog = false }) {
-                    Text("Cancel")
+                    Text("Kanselahin")
                 }
             }
         )
@@ -872,13 +873,17 @@ fun SettingsDropdownRow(
                 )
             ) {
                 Text(
-                    text = value.capitalize(),
+                    text = when (value) {
+                        "maliit" -> "Maliit"
+                        "malaki" -> "Malaki"
+                        else -> "Katamtaman"
+                    },
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = "Select size",
+                    contentDescription = "Pumili ng laki",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -888,7 +893,15 @@ fun SettingsDropdownRow(
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.capitalize()) },
+                        text = { 
+                            Text(
+                                when (option) {
+                                    "maliit" -> "Maliit"
+                                    "malaki" -> "Malaki"
+                                    else -> "Katamtaman"
+                                }
+                            ) 
+                        },
                         onClick = {
                             onOptionSelected(option)
                             showDropdown = false

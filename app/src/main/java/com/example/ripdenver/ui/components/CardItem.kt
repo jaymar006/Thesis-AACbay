@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,16 +38,55 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.example.ripdenver.R
 import com.example.ripdenver.models.Card
+import com.example.ripdenver.viewmodels.MainViewModel
 
 @Composable
 fun CardItem(
     card: Card,
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    isInContainer: Boolean = false,
+    mainViewModel: MainViewModel? = null
 ) {
     val context = LocalContext.current
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
     val cardColor = Color(android.graphics.Color.parseColor(card.color))
+
+    // Collect all size states at once to ensure proper recomposition
+    val containerImageSize by mainViewModel?.containerImageSize?.collectAsState(initial = "katamtaman") ?: remember { mutableStateOf("katamtaman") }
+    val boardImageSize by mainViewModel?.boardImageSize?.collectAsState(initial = "katamtaman") ?: remember { mutableStateOf("katamtaman") }
+    val containerTextSize by mainViewModel?.containerTextSize?.collectAsState(initial = "katamtaman") ?: remember { mutableStateOf("katamtaman") }
+    val boardTextSize by mainViewModel?.boardTextSize?.collectAsState(initial = "katamtaman") ?: remember { mutableStateOf("katamtaman") }
+
+    // More pronounced size differences
+    val imageSize = if (isInContainer) {
+        when (containerImageSize) {
+            "maliit" -> 0.35f
+            "malaki" -> 0.75f
+            else -> 0.55f // katamtaman
+        }
+    } else {
+        when (boardImageSize) {
+            "maliit" -> 0.35f
+            "malaki" -> 0.75f
+            else -> 0.55f // katamtaman
+        }
+    }
+
+    // More pronounced text size differences
+    val fontSize = if (isInContainer) {
+        when (containerTextSize) {
+            "maliit" -> 0.06f
+            "malaki" -> 0.20f
+            else -> 0.12f // katamtaman
+        }
+    } else {
+        when (boardTextSize) {
+            "maliit" -> 0.06f
+            "malaki" -> 0.20f
+            else -> 0.12f // katamtaman
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -65,8 +105,8 @@ fun CardItem(
                 .background(cardColor.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
-            val imageSize = maxWidth * 0.5f // half the width
-            val fontSize = maxWidth.value * 0.12f // scale font size
+            val calculatedImageSize = maxWidth * imageSize
+            val calculatedFontSize = maxWidth.value * fontSize
 
             Column(
                 modifier = Modifier
@@ -98,21 +138,21 @@ fun CardItem(
                         Image(
                             bitmap = it.asImageBitmap(),
                             contentDescription = card.label,
-                            modifier = Modifier.size(imageSize),
+                            modifier = Modifier.size(calculatedImageSize),
                             contentScale = ContentScale.Fit
                         )
                     } ?: Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = "Loading",
                         tint = Color.White,
-                        modifier = Modifier.size(imageSize * 0.6f)
+                        modifier = Modifier.size(calculatedImageSize * 0.6f)
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = "No image",
                         tint = Color.White,
-                        modifier = Modifier.size(imageSize * 0.6f)
+                        modifier = Modifier.size(calculatedImageSize * 0.6f)
                     )
                 }
 
@@ -123,7 +163,7 @@ fun CardItem(
                     modifier = Modifier.padding(2.dp),
                     color = Color.Black,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = fontSize.sp
+                        fontSize = calculatedFontSize.sp
                     ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis

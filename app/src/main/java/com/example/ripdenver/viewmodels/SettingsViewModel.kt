@@ -29,16 +29,16 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private val _columnCount = mutableStateOf(6)
     val columnCount: State<Int> = _columnCount
 
-    private val _boardImageSize = mutableStateOf("medium")
+    private val _boardImageSize = mutableStateOf("katamtaman")
     val boardImageSize: State<String> = _boardImageSize
 
-    private val _containerImageSize = mutableStateOf("medium")
+    private val _containerImageSize = mutableStateOf("katamtaman")
     val containerImageSize: State<String> = _containerImageSize
 
-    private val _boardTextSize = mutableStateOf("medium")
+    private val _boardTextSize = mutableStateOf("katamtaman")
     val boardTextSize: State<String> = _boardTextSize
 
-    private val _containerTextSize = mutableStateOf("medium")
+    private val _containerTextSize = mutableStateOf("katamtaman")
     val containerTextSize: State<String> = _containerTextSize
 
     val appVersion = "1.0.0" // Replace with actual version
@@ -52,10 +52,10 @@ class SettingsViewModel @Inject constructor() : ViewModel() {
     private var initialColumnCount = 6
     private var initialShowPredictions = true
     private var initialAllowDataSharing = false
-    private var initialBoardImageSize = "medium"
-    private var initialContainerImageSize = "medium"
-    private var initialBoardTextSize = "medium"
-    private var initialContainerTextSize = "medium"
+    private var initialBoardImageSize = "katamtaman"
+    private var initialContainerImageSize = "katamtaman"
+    private var initialBoardTextSize = "katamtaman"
+    private var initialContainerTextSize = "katamtaman"
 
     // Operation status states
     private val _showOperationStatus = mutableStateOf(false)
