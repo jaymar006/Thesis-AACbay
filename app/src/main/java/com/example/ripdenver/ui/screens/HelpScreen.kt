@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,11 +29,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,6 +67,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.ripdenver.R
+import com.example.ripdenver.models.TutorialStep
 import kotlinx.coroutines.delay
 
 private const val TAG = "HelpScreen"
@@ -81,34 +85,71 @@ fun HelpScreen(
     val tutorialSteps = listOf(
         TutorialStep(
             title = "Maligayang Pagdating sa AACBAY!",
-            description = "Tara at tuklasin ang mga pangunahing tampok ng app.",
+            description = "Ang AACBAY ay isang Augmentative and Alternative Communication (AAC) app na tumutulong sa mga taong may kapansanan sa pagsasalita o wika. Gamit ang mga card at folder, maaari kang makipag-usap sa pamamagitan ng text-to-speech at speech-to-text.",
             icon = Icons.Default.Info,
             imageResId = R.drawable.tutorial_welcome
         ),
         TutorialStep(
-            title = "Communication Board",
-            description = "Dito mo makikita ang lahat ng iyong mga card at folder. I-tap ang mga card para basahin, o i-tap ang folder para buksan.",
+            title = "Communication Board at Folders",
+            description = "Ito ang pangunahing screen ng app. Makikita mo ang mga card at folder sa unang lagayan. I-tap ang mga card para basahin, o i-tap ang folder para makita ang mga card sa loob nito. Kung i-tap mo ang folder, may ibang tutorial na magpapakita kung paano gamitin ang mga card sa loob nito.",
             icon = Icons.Default.Dashboard,
             imageResId = R.drawable.tutorial_board
         ),
         TutorialStep(
-            title = "Speak Module",
-            description = "Dito ka magsasalita at awtomatikong iko-convert ng app ang iyong boses sa text. Mainam ito para sa mabilis na pagbuo ng mensahe gamit ang iyong boses.",
-            icon = Icons.Default.RecordVoiceOver,
-            imageResId = R.drawable.tutorial_speak
+            title = "Selection Container",
+            description = "Sa itaas ng screen, makikita mo ang selection container kung saan napupunta ang mga card na iyong pinili. May apat na button dito:\n• una para tanggalin ang huling card na pinili \n• pangalawa para mabura lahat ng card na napili \n•pangatlo ma-modify ang card o folder \n• pangapat para mapunta sa settings \n• click ang container para basahin ng app ang lahat ng napiling card",
+            icon = Icons.Default.Dashboard,
+            imageResId = R.drawable.tutorial_selection
         ),
         TutorialStep(
-            title = "Settings",
-            description = "I-personalize ang iyong karanasan dito. Baguhin ang bilang ng column, i-on o i-off ang mga mungkahi, at marami pang iba.",
+            title = "Magbura ng huling napiling kard",
+            description = "Pindutin ang button na nakikita sa larawan upang mabura ang huling napiling kard.",
+            icon = Icons.Default.Dashboard,
+            imageResId = R.drawable.tutorial_delete_one
+        ),
+        TutorialStep(
+            title = "Magbura ng lahat na napiling kards",
+            description = "Pindutin naman ang button na nakikita sa larawan upang mabura ang lahat ng napiling kards.",
+            icon = Icons.Default.Dashboard,
+            imageResId = R.drawable.tutorial_delete_all
+        ),
+        TutorialStep(
+            title = "Dropdown Menu",
+            description = "Sa itaas na kanan ng screen, makikita mo ang dropdown menu. Dito mo magagawa ang mga sumusunod:\n• Magdagdag ng bagong card o folder\n• I-edit ang mga card o folder\n• Tanggalin ang mga card o folder",
             icon = Icons.Default.Settings,
-            imageResId = R.drawable.tutorial_settings
+            imageResId = R.drawable.tutorial_dropdown
         ),
         TutorialStep(
-            title = "Add Card / Folder",
-            description = "Gumawa ng sarili mong mga card at folder sa pamamagitan ng pag-tap sa + button. Magdagdag ng larawan, label, at ayusin ayon sa iyong gusto!",
+            title = "Paano Magdagdag ng Card",
+            description = "Para magdagdag ng bagong card:\n1. I-tap ang + button sa dropdown menu\n2. Pumili ng larawan para sa card\n3. Ilagay ang salita o parirala\n4. Pumili ng kulay para sa card\n5. I-save ang card",
             icon = Icons.Default.Add,
             imageResId = R.drawable.tutorial_add
-        )
+        ),
+        TutorialStep(
+            title = "Paano I-edit ang Card",
+            description = "Para i-edit ang isang card:\n1. I-tap ang dropdown menu\n2. Piliin ang 'Edit Card'\n3. I-tap ang card na gusto mong i-edit\n4. Baguhin ang larawan, salita, o kulay\n5. I-save ang mga pagbabago",
+            icon = Icons.Default.Edit,
+            imageResId = R.drawable.tutorial_edit
+        ),
+        TutorialStep(
+            title = "Paano Tanggalin ang Card",
+            description = "Para tanggalin ang isang card:\n1. I-tap ang dropdown menu\n2. Piliin ang 'Delete Card'\n3. I-tap ang card na gusto mong tanggalin\n4. I-confirm ang pagtanggal",
+            icon = Icons.Default.Delete,
+            imageResId = R.drawable.tutorial_delete
+        ),
+        TutorialStep(
+            title = "Mga Setting",
+            description = "Para ma-access ang settings:\n1. I-tap ang dropdown menu\n2. Piliin ang 'Settings'\nDito mo maaaring:\n• Baguhin ang bilang ng column\n• I-on o i-off ang mga mungkahi\n• Baguhin ang laki ng text at larawan\n• I-adjust ang iba pang mga setting",
+            icon = Icons.Default.Settings,
+            imageResId = R.drawable.tutorial_setting
+        ),
+        TutorialStep(
+            title = "Paano gamitin ang speech-to-text",
+            description = "Magagamit ang speech-to-text sa pamamagitan ng pag-tap sa microphone icon sa Speak Module. I-tap ito at magsalita. Ang app ay magko-convert ng iyong sinasabi sa text na maaari mong gamitin sa communication board.",
+            icon = Icons.Default.Mic,
+            imageResId = R.drawable.tutorial_speak
+        ),
+
     )
 
     LaunchedEffect(showTutorial) {
@@ -225,6 +266,7 @@ fun HelpScreen(
                 } else {
                     showTutorialDialog = false
                     currentTutorialStep = 0
+                    onNavigateBack() // Navigate to main screen when tutorial is finished
                 }
             },
             onPrevious = {
@@ -235,6 +277,7 @@ fun HelpScreen(
             onDismiss = {
                 showTutorialDialog = false
                 currentTutorialStep = 0
+                onNavigateBack() // Navigate to main screen when tutorial is dismissed
             }
         )
     }
@@ -273,154 +316,169 @@ private fun TutorialOverlay(
             modifier = Modifier
                 .widthIn(max = 700.dp)
                 .fillMaxWidth(0.9f)
+                .fillMaxHeight(0.9f)
         ) {
             Column(
                 modifier = Modifier
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (currentStep == 0) {
-                    // Welcome screen layout
-                    Icon(
-                        imageVector = step.icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    Text(
-                        text = step.title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text(
-                        text = step.description,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center
-                    )
-                } else {
-                    // Other steps layout with image and content side by side
-                    Row(
+                // Scrollable content area
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(300.dp),
-                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        // Image on the left
-                        Image(
-                            painter = painterResource(id = step.imageResId),
-                            contentDescription = step.title,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            contentScale = ContentScale.Fit
-                        )
-
-                        // Content on the right
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = step.icon,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(32.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = step.title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
+                        if (currentStep == 0) {
+                            // Welcome screen layout
+                            Icon(
+                                imageVector = step.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            Text(
+                                text = step.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                            
                             Spacer(modifier = Modifier.height(16.dp))
-
+                            
                             Text(
                                 text = step.description,
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center
                             )
+                        } else {
+                            // Other steps layout with image and content side by side
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 300.dp),
+                                horizontalArrangement = Arrangement.spacedBy(24.dp)
+                            ) {
+                                // Image on the left
+                                Image(
+                                    painter = painterResource(id = step.imageResId),
+                                    contentDescription = step.title,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
+                                    contentScale = ContentScale.Fit
+                                )
+
+                                // Content on the right
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(
+                                            imageVector = step.icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(32.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = step.title,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Text(
+                                        text = step.description,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(15.dp))
-                Row(
+                
+                // Fixed navigation section
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        enabled = currentStep > 0
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Skip")
-                    }
-                    
-                    Row {
-                        if (currentStep > 0) {
-                            TextButton(onClick = onPrevious) {
-                                Text("Previous")
+                        TextButton(
+                            onClick = onDismiss,
+                            enabled = currentStep > 0
+                        ) {
+                            Text("Skip")
+                        }
+                        
+                        Row {
+                            if (currentStep > 0) {
+                                TextButton(onClick = onPrevious) {
+                                    Text("Previous")
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            Button(
+                                onClick = onNext,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.height(48.dp)
+                            ) {
+                                Text(
+                                    if (currentStep == totalSteps - 1) "Finish" else "Next",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        Button(
-                            onClick = onNext,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Text(
-                                if (currentStep == totalSteps - 1) "Finish" else "Next",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
                     }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    LinearProgressIndicator(
+                        progress = (currentStep + 1).toFloat() / totalSteps,
+                        modifier = Modifier.fillMaxWidth(),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = "Step ${currentStep + 1} of $totalSteps",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                LinearProgressIndicator(
-                    progress = (currentStep + 1).toFloat() / totalSteps,
-                    modifier = Modifier.fillMaxWidth(),
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Step ${currentStep + 1} of $totalSteps",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
 }
-
-data class TutorialStep(
-    val title: String,
-    val description: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
-    val imageResId: Int
-)
 
 @Composable
 private fun ExpandableSection(

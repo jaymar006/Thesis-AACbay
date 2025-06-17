@@ -1,5 +1,6 @@
 package com.example.ripdenver.ui.screens
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.ripdenver.ui.components.TutorialModal
 import com.example.ripdenver.viewmodels.EditCardViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 import kotlinx.coroutines.launch
@@ -66,10 +68,6 @@ fun EditCardScreen(
     viewModel: EditCardViewModel,
     cardId: String
 ) {
-    LaunchedEffect(Unit) {
-        viewModel.loadAllPictograms()
-    }
-
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
@@ -80,11 +78,9 @@ fun EditCardScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedSymbolUrl: String? by remember { mutableStateOf(null) }
 
-
     var showImageSourceDialog by remember { mutableStateOf(false) }
     var showSymbolSearchDialog by remember { mutableStateOf(false) }
-
-
+    var showTutorial by remember { mutableStateOf(false) }
 
     val onPreviewClick = {
         showImageSourceDialog = true
@@ -105,13 +101,23 @@ fun EditCardScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadAllPictograms()
+    }
 
-    // Load card data when screen is first displayed
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
+        val hasSeenEditTutorial = prefs.getBoolean("has_seen_edit_tutorial", false)
+        if (!hasSeenEditTutorial) {
+            showTutorial = true
+            prefs.edit().putBoolean("has_seen_edit_tutorial", true).apply()
+        }
+    }
+
     LaunchedEffect(cardId) {
         viewModel.loadCardData(cardId)
     }
 
-    // Search for pictograms when query changes
     LaunchedEffect(searchQuery.value) {
         if (searchQuery.value.isNotEmpty()) {
             viewModel.searchPictograms(searchQuery.value)
@@ -181,7 +187,6 @@ fun EditCardScreen(
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-            // Left side - Card preview
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -190,7 +195,6 @@ fun EditCardScreen(
                     .clickable { onPreviewClick() },
                 contentAlignment = Alignment.Center
             ) {
-                // Using Card component from second document
                 Card(
                     modifier = Modifier
                         .size(180.dp)
@@ -199,7 +203,7 @@ fun EditCardScreen(
                             width = 1.dp,
                             color = Color(android.graphics.Color.parseColor(uiState.cardColor)),
                             shape = MaterialTheme.shapes.medium
-                        ),// Add this clickable modifier
+                        ),
                     colors = CardDefaults.cardColors(
                         containerColor = Color(android.graphics.Color.parseColor(uiState.cardColor)).copy(alpha = 0.5f)
                     )
@@ -254,33 +258,29 @@ fun EditCardScreen(
                 }
             }
 
-            // Right side - Form fields
             Column(
                 modifier = Modifier
                     .weight(2f)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Card label input
                 OutlinedTextField(
                     value = uiState.cardLabel,
                     onValueChange = { viewModel.updateCardLabel(it) },
-                    label = { Text("Label") },
+                    label = { Text("Pangalan") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                 )
 
-                // Card vocalization input
                 OutlinedTextField(
                     value = uiState.cardVocalization,
                     onValueChange = { viewModel.updateCardVocalization(it) },
-                    label = { Text("Vocalization Text") },
+                    label = { Text("Pagbigkas") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                 )
 
-                // Color picker
                 Text(
                     text = "Mga Kulay",
                     style = MaterialTheme.typography.titleMedium,
@@ -292,10 +292,8 @@ fun EditCardScreen(
                 )
             }
         }
-
-
     }
-    // Dialogs
+
     if (showImageSourceDialog) {
         ImageSourceDialog(
             onDismiss = { showImageSourceDialog = false },
@@ -318,6 +316,18 @@ fun EditCardScreen(
                 onSymbolSelected(imageUrl)
                 showSymbolSearchDialog = false
             }
+        )
+    }
+
+    if (showTutorial) {
+        TutorialModal(
+            title = "Paano I-edit ang Kard",
+            content = "Para i-edit ang isang kard:\n\n" +
+                     "1. Baguhin ang salita o parirala sa 'Pangalan' field at 'Pagbigkas' kung paano ito bibigkasin\n" +
+                     "2. Pumili ng bagong larawan sa pamamagitan ng pag-click sa kahon na may larawan\n" +
+                     "3. Pumili ng bagong kulay para sa kard\n" +
+                     "4. I-click ang 'Save' button para i-save ang mga pagbabago",
+            onDismiss = { showTutorial = false }
         )
     }
 }

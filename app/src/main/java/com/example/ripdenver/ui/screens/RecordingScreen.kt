@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ripdenver.viewmodels.RecordViewModel
+import com.example.ripdenver.ui.components.TutorialModal
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,11 +75,18 @@ fun RecordingScreen(
     val fontColor = viewModel.fontColor.value
     val fontFamily = viewModel.fontFamily.value
     var showLanguagePrompt by remember { mutableStateOf(false) }
+    var showTutorial by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.initializeSpeechRecognizer(context)
         if (!checkFilipinoPack(context)) {
             showLanguagePrompt = true
+        }
+        val prefs = context.getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
+        val hasSeenRecordingTutorial = prefs.getBoolean("has_seen_recording_tutorial", false)
+        if (!hasSeenRecordingTutorial) {
+            showTutorial = true
+            prefs.edit().putBoolean("has_seen_recording_tutorial", true).apply()
         }
     }
 
@@ -93,6 +101,23 @@ fun RecordingScreen(
                 }
                 showLanguagePrompt = false
             }
+        )
+    }
+
+    if (showTutorial) {
+        TutorialModal(
+            title = "Paano Gamitin ang Recording",
+            content = "Ang recording screen ay ginagamit para i-record ang iyong boses:\n\n" +
+                     "1. I-tap ang microphone button para magsimula ng recording\n" +
+                     "2. Magsalita ng malinaw at malakas\n" +
+                     "3. I-tap ulit ang button para tapusin ang recording\n" +
+                     "4. I-play ang recording para marinig kung tama\n" +
+                     "5. I-save ang recording kung gusto mo itong gamitin\n\n" +
+                     "Tips:\n" +
+                     "• Siguraduhing tahimik ang lugar\n" +
+                     "• Mag-speak ng malinaw at dahan-dahan\n" +
+                     "• I-test muna ang recording bago i-save",
+            onDismiss = { showTutorial = false }
         )
     }
 

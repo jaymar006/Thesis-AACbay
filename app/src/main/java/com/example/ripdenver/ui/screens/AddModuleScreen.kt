@@ -70,6 +70,9 @@ import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 import kotlinx.coroutines.launch
+import com.example.ripdenver.ui.components.TutorialModal
+import android.content.Context
+import android.content.SharedPreferences
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +83,18 @@ fun AddModuleScreen(
     onBack: () -> Unit,
     onSaveComplete: () -> Unit
 ) {
+    val context = LocalContext.current
+    var showTutorial by remember { mutableStateOf(false) }
+    
+    // Check if this is the first time showing the tutorial
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
+        val hasSeenAddTutorial = prefs.getBoolean("has_seen_add_tutorial", false)
+        if (!hasSeenAddTutorial) {
+            showTutorial = true
+            prefs.edit().putBoolean("has_seen_add_tutorial", true).apply()
+        }
+    }
 
     LaunchedEffect(folderId) {
         viewModel.setFolderId(folderId)
@@ -87,7 +102,6 @@ fun AddModuleScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     // State for image handling
@@ -438,6 +452,25 @@ fun AddModuleScreen(
                     )
                 }
             }
+        }
+
+        if (showTutorial) {
+            TutorialModal(
+                title = if (uiState.isCardSelected) "Paano Magdagdag ng Kard" else "Paano Magdagdag ng Folder",
+                content = if (uiState.isCardSelected) {
+                    "Para magdagdag ng bagong kard:\n\n" +
+                    "1. Mag-type ng salita o parirala sa 'Pangalan' field at 'Pagbigkas' kung paano ito bibigkasin\n" +
+                    "2. Pumili ng larawan sa pamamagitan ng pag-click sa Kahon na may larawan\n" +
+                    "3. Pumili ng kulay para sa kard\n" +
+                    "4. I-click ang 'Save' button para i-save ang kard"
+                } else {
+                    "Para magdagdag ng bagong folder:\n\n" +
+                    "1. Mag-type ng pangalan ng folder sa 'Label' field\n" +
+                    "2. Pumili ng kulay para sa folder\n" +
+                    "3. I-click ang 'Save' button para i-save ang folder"
+                },
+                onDismiss = { showTutorial = false }
+            )
         }
     }
 }

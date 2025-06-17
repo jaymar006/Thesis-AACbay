@@ -32,12 +32,18 @@ import com.example.ripdenver.viewmodels.AddModuleViewModel
 import com.example.ripdenver.viewmodels.MainViewModel
 import com.example.ripdenver.viewmodels.NgramVisualizationViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import android.content.Context
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CloudinaryManager.initialize(this)
+        
+        // Check if this is the first launch
+        val sharedPrefs = getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
+        val isFirstLaunch = sharedPrefs.getBoolean("is_first_launch", true)
+        
         setContent {
             RIPDenverTheme {
                 val navController = rememberNavController()
@@ -48,9 +54,20 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(
                     navController = navController,
-                    startDestination = "main"
+                    startDestination = if (isFirstLaunch) "help" else "main"
                 ) {
-                    navController.enableOnBackPressed(false)
+                    composable("help") {
+                        HelpScreen(
+                            onNavigateBack = {
+                                // Save that tutorial has been shown
+                                sharedPrefs.edit().putBoolean("is_first_launch", false).apply()
+                                navController.navigate("main") {
+                                    popUpTo("help") { inclusive = true }
+                                }
+                            },
+                            showTutorial = true
+                        )
+                    }
 
                     composable("main") {
                         val isDeleteMode by mainViewModel.isDeleteMode.collectAsState()
@@ -62,10 +79,8 @@ class MainActivity : ComponentActivity() {
                             selectedCards = selectedCards,
                             onCardClick = { card ->
                                 mainViewModel.addCardToSelection(card)
-                                // Trigger TTS here if needed
                             },
                             onFolderClick = { folder ->
-                                //mainViewModel.addToSelection(folder)
                                 navController.navigate("folder/${folder.id}")
                             },
                             onAddClick = { navController.navigate("addModule") },

@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.ripdenver.viewmodels.SettingsViewModel
 import kotlinx.coroutines.delay
+import com.example.ripdenver.ui.components.TutorialModal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +99,18 @@ fun SettingsScreen(
 
     var showUnsavedDialog by remember { mutableStateOf(false) }
     val hasUnsavedChanges = viewModel.hasUnsavedChanges.collectAsState().value
+
+    var showTutorial by remember { mutableStateOf(false) }
+    
+    // Check if this is the first time showing the tutorial
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
+        val hasSeenSettingsTutorial = prefs.getBoolean("has_seen_settings_tutorial", false)
+        if (!hasSeenSettingsTutorial) {
+            showTutorial = true
+            prefs.edit().putBoolean("has_seen_settings_tutorial", true).apply()
+        }
+    }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -739,6 +752,25 @@ fun SettingsScreen(
             delay(2000) // Wait for 2 seconds
             showTapFeedback = false
         }
+    }
+
+    if (showTutorial) {
+        TutorialModal(
+            title = "Mga Setting ng App",
+            content = "Sa settings screen, maaari mong i-customize ang app ayon sa iyong pangangailangan:\n\n" +
+                     "1. Board Settings:\n" +
+                     "   • Bilang ng hanay sa board\n" +
+                     "   • Laki ng larawan at text\n" +
+                     "   • I-on/off ang mga mungkahi\n\n" +
+                     "2. Data Management:\n" +
+                     "   • I-save ang data\n" +
+                     "   • I-load ang data mula sa ibang device\n\n" +
+                     "3. Tutorial:\n" +
+                     "   • Panoorin ang tutorial kung paano gamitin ang app\n\n" +
+                     "4. App Version:\n" +
+                     "   • Tingnan ang kasalukuyang bersyon ng app",
+            onDismiss = { showTutorial = false }
+        )
     }
 }
 
