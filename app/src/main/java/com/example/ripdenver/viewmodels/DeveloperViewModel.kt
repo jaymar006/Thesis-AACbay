@@ -18,8 +18,9 @@ class DeveloperViewModel @Inject constructor(
     // Add developer-specific functionality here
     fun validatePin(pin: String): Boolean {
         Log.d("DeveloperViewModel", "Validating PIN: $pin")
-        val isValid = pin == "000000"
-        Log.d("DeveloperViewModel", "PIN validation result: $isValid")
+        val currentPassword = getCurrentDeveloperPassword()
+        val isValid = pin == currentPassword
+        Log.d("DeveloperViewModel", "PIN validation result: $isValid (current password: $currentPassword)")
         return isValid
     }
 
@@ -29,6 +30,20 @@ class DeveloperViewModel @Inject constructor(
             .edit()
             .putBoolean("is_first_launch", true)
             .apply()
+    }
+
+    fun changeDeveloperPassword(newPassword: String) {
+        Log.d("DeveloperViewModel", "Changing developer password")
+        context.getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
+            .edit()
+            .putString("developer_password", newPassword)
+            .apply()
+        Log.d("DeveloperViewModel", "Developer password changed successfully")
+    }
+
+    fun getCurrentDeveloperPassword(): String {
+        return context.getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
+            .getString("developer_password", "000000") ?: "000000"
     }
 
     override fun onCleared() {

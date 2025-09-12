@@ -1,6 +1,7 @@
 package com.example.ripdenver.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,7 +37,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Surface
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.zIndex
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,6 +73,7 @@ fun StorageManagementScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     var expanded by remember { mutableStateOf(false) }
     var selectedTable by remember { mutableStateOf<TableData?>(null) }
+    var showTableDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -140,6 +152,7 @@ fun StorageManagementScreen(
                                 },
                                 onClick = {
                                     selectedTable = table
+                                    showTableDialog = true
                                     expanded = false
                                 }
                             )
@@ -147,45 +160,75 @@ fun StorageManagementScreen(
                     }
                 }
 
-                // Selected table view
-                selectedTable?.let { table ->
-                    TableCard(table = table)
-                } ?: run {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
+                // Instructions
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Select a table to view its contents",
+                            text = "Select a table from the dropdown above to view its contents",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Available tables: ${tables.size}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     }
                 }
             }
         }
     }
+    
+    // Table dialog
+    selectedTable?.let { table ->
+        if (showTableDialog) {
+            TableDialog(
+                table = table,
+                onDismiss = { showTableDialog = false }
+            )
+        }
+    }
 }
 
 @Composable
-fun TableCard(table: TableData) {
+fun TableDialog(
+    table: TableData,
+    onDismiss: () -> Unit
+) {
+    val horizontalScrollState = rememberScrollState()
     Box(
         modifier = Modifier
             .fillMaxSize()
-
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
+            .zIndex(1f)
+            .clickable { onDismiss() },
+        contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = Modifier
-                .fillMaxSize(),
-            shape = RoundedCornerShape(12.dp)
+                .fillMaxWidth(0.95f) // Use 95% of screen width
+                .height(500.dp) // Set specific height
+                .clickable { }, // Prevent click propagation
+            shape = RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
+                // Title
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -199,56 +242,61 @@ fun TableCard(table: TableData) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = table.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge
                     )
                 }
-
-                // Table header (sticky)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(8.dp)
-                ) {
-                    table.columns.forEach { column ->
-                        Text(
-                            text = column,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.width(120.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                // Table content in a scrollable container
+                
+                // Table content - scrollable container
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .verticalScroll(rememberScrollState())
+                        .fillMaxWidth()
                 ) {
-                    // Table rows
-                    table.rows.forEach { row ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(8.dp)
-                        ) {
-                            table.columns.forEach { column ->
-                                Text(
-                                    text = row[column]?.toString() ?: "",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.width(120.dp),
-                                    textAlign = TextAlign.Center
-                                )
+                    // Table header - inside scrollable container
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .padding(8.dp)
+                            .horizontalScroll(horizontalScrollState)
+                    ) {
+                        table.columns.forEach { column ->
+                            Text(
+                                text = column,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(150.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    
+                    // Table data - scrollable
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        table.rows.forEach { row ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp)
+                                    .horizontalScroll(horizontalScrollState)
+                            ) {
+                                table.columns.forEach { column ->
+                                    Text(
+                                        text = row[column]?.toString() ?: "",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.width(150.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     }
                 }
-
+                
                 // Table summary
                 Text(
                     text = "Total rows: ${table.rows.size}",
@@ -256,6 +304,18 @@ fun TableCard(table: TableData) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
+                
+                // Close button
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Close")
+                    }
+                }
             }
         }
     }

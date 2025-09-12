@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,6 +21,7 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,6 +58,9 @@ fun DeveloperScreen(
 ) {
     val context = LocalContext.current
     var showResetConfirmation by remember { mutableStateOf(false) }
+    var showPasswordChangeDialog by remember { mutableStateOf(false) }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
     fun resetAllTutorials() {
         val prefs = context.getSharedPreferences("AACBAY_PREFS", Context.MODE_PRIVATE)
@@ -86,7 +94,8 @@ fun DeveloperScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Button(
@@ -140,6 +149,19 @@ fun DeveloperScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("I-reset ang Lahat ng Tutorial")
             }
+
+            Button(
+                onClick = { showPasswordChangeDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Baguhin ang Developer Password")
+            }
         }
     }
 
@@ -160,6 +182,63 @@ fun DeveloperScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showResetConfirmation = false }) {
+                    Text("Kanselahin")
+                }
+            }
+        )
+    }
+
+    // Password change dialog
+    if (showPasswordChangeDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showPasswordChangeDialog = false
+                newPassword = ""
+                confirmPassword = ""
+            },
+            title = { Text("Baguhin ang Developer Password") },
+            text = {
+                Column {
+                    Text("Ilagay ang bagong password para sa developer mode:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = newPassword,
+                        onValueChange = { newPassword = it },
+                        label = { Text("Bagong Password") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = { Text("Kumpirmahin ang Password") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newPassword.isNotEmpty() && newPassword == confirmPassword) {
+                            viewModel.changeDeveloperPassword(newPassword)
+                            showPasswordChangeDialog = false
+                            newPassword = ""
+                            confirmPassword = ""
+                        }
+                    },
+                    enabled = newPassword.isNotEmpty() && newPassword == confirmPassword
+                ) {
+                    Text("Baguhin")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { 
+                        showPasswordChangeDialog = false
+                        newPassword = ""
+                        confirmPassword = ""
+                    }
+                ) {
                     Text("Kanselahin")
                 }
             }
