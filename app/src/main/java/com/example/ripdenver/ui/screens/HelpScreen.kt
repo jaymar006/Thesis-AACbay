@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.ripdenver.R
 import com.example.ripdenver.models.TutorialStep
+import com.example.ripdenver.ui.components.EnhancedTutorialStep
 import kotlinx.coroutines.delay
 
 private const val TAG = "HelpScreen"
@@ -76,7 +77,8 @@ private const val TAG = "HelpScreen"
 @Composable
 fun HelpScreen(
     onNavigateBack: () -> Unit,
-    showTutorial: Boolean = false
+    showTutorial: Boolean = false,
+    onNavigateToTutorialCategories: (() -> Unit)? = null
 ) {
     var showTutorialDialog by remember { mutableStateOf(showTutorial) }
     var currentTutorialStep by remember { mutableStateOf(0) }
@@ -254,12 +256,12 @@ fun HelpScreen(
         }
     }
 
-    // Place the overlay here, outside the Scaffold
+    // Place the enhanced tutorial overlay here, outside the Scaffold
     if (showTutorialDialog) {
-        TutorialOverlay(
+        EnhancedTutorialStep(
+            step = tutorialSteps[currentTutorialStep],
             currentStep = currentTutorialStep,
             totalSteps = tutorialSteps.size,
-            step = tutorialSteps[currentTutorialStep],
             onNext = {
                 if (currentTutorialStep < tutorialSteps.size - 1) {
                     currentTutorialStep++

@@ -26,6 +26,7 @@ import com.example.ripdenver.ui.screens.NgramVisualizationScreen
 import com.example.ripdenver.ui.screens.RecordingScreen
 import com.example.ripdenver.ui.screens.SettingsScreen
 import com.example.ripdenver.ui.screens.StorageManagementScreen
+import com.example.ripdenver.ui.screens.TutorialCategoriesScreen
 import com.example.ripdenver.ui.theme.RIPDenverTheme
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.viewmodels.AddModuleViewModel
@@ -65,7 +66,10 @@ class MainActivity : ComponentActivity() {
                                     popUpTo("help") { inclusive = true }
                                 }
                             },
-                            showTutorial = true
+                            showTutorial = true,
+                            onNavigateToTutorialCategories = {
+                                navController.navigate("tutorial_categories")
+                            }
                         )
                     }
 
@@ -204,7 +208,20 @@ class MainActivity : ComponentActivity() {
                         val showTutorial = backStackEntry.arguments?.getBoolean("showTutorial") ?: false
                         HelpScreen(
                             onNavigateBack = { navController.popBackStack() },
-                            showTutorial = showTutorial
+                            showTutorial = showTutorial,
+                            onNavigateToTutorialCategories = {
+                                navController.navigate("tutorial_categories")
+                            }
+                        )
+                    }
+
+                    composable("tutorial_categories") {
+                        TutorialCategoriesScreen(
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToTutorial = { category ->
+                                // Navigate to specific tutorial category
+                                navController.navigate("help?showTutorial=true")
+                            }
                         )
                     }
 
