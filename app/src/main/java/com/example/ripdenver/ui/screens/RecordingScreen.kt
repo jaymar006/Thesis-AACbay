@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -42,6 +43,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,7 +62,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ripdenver.viewmodels.RecordViewModel
 import com.example.ripdenver.ui.components.TutorialModal
 
@@ -65,20 +70,50 @@ import com.example.ripdenver.ui.components.TutorialModal
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecordingScreen(
-    viewModel: RecordViewModel = hiltViewModel(),
     onDismiss: () -> Unit
 ) {
+    // Create ViewModel only when this screen is actually shown
+    val viewModel: RecordViewModel = viewModel()
     val context = LocalContext.current
     val isRecording = viewModel.isRecording.value
     val recognizedText = viewModel.recognizedText.value
     val fontSize = viewModel.fontSize.value
     val fontColor = viewModel.fontColor.value
     val fontFamily = viewModel.fontFamily.value
+    val errorMessage = viewModel.errorMessage.value
+    val showError = viewModel.showError.value
+    val currentLanguage = viewModel.getCurrentLanguage()
+    val languageChangeMessage = viewModel.languageChangeMessage.value
+    val showLanguageChangeNotification = viewModel.showLanguageChangeNotification.value
     var showLanguagePrompt by remember { mutableStateOf(false) }
     var showTutorial by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
+        // Check device compatibility first
+        if (!viewModel.isDeviceCompatible()) {
+            Log.e("RecordingScreen", "Device not compatible with speech recognition")
+            return@LaunchedEffect
+        }
+        
+        // Test speech recognition availability
+        if (!viewModel.testSpeechRecognition(context)) {
+            Log.e("RecordingScreen", "Speech recognition not available on this device")
+            return@LaunchedEffect
+        }
+        
+        // Test recognizer creation
+        if (!viewModel.testRecognizerCreation(context)) {
+            Log.e("RecordingScreen", "Cannot create speech recognizer on this device")
+            return@LaunchedEffect
+        }
+        
+        Log.d("RecordingScreen", "Testing basic speech recognition...")
+        viewModel.testBasicSpeechRecognition(context)
+        
+        Log.d("RecordingScreen", "Initializing speech recognizer...")
         viewModel.initializeSpeechRecognizer(context)
+        
         if (!checkFilipinoPack(context)) {
             showLanguagePrompt = true
         }
@@ -87,6 +122,17 @@ fun RecordingScreen(
         if (!hasSeenRecordingTutorial) {
             showTutorial = true
             prefs.edit().putBoolean("has_seen_recording_tutorial", true).apply()
+        }
+    }
+
+    // Show language change notification
+    LaunchedEffect(showLanguageChangeNotification) {
+        if (showLanguageChangeNotification && languageChangeMessage.isNotEmpty()) {
+            snackbarHostState.showSnackbar(
+                message = languageChangeMessage,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.dismissLanguageChangeNotification()
         }
     }
 
@@ -106,18 +152,51 @@ fun RecordingScreen(
 
     if (showTutorial) {
         TutorialModal(
-            title = "Paano Gamitin ang Recording",
-            content = "Ang recording screen ay ginagamit para i-record ang iyong boses:\n\n" +
+            title = "Paano Gamitin ang Speech-to-Text",
+            content = "Ang speech-to-text feature ay ginagamit para i-convert ang iyong boses sa text:\n\n" +
                      "1. I-tap ang microphone button para magsimula ng recording\n" +
                      "2. Magsalita ng malinaw at malakas\n" +
                      "3. I-tap ulit ang button para tapusin ang recording\n" +
-                     "4. I-play ang recording para marinig kung tama\n" +
-                     "5. I-save ang recording kung gusto mo itong gamitin\n\n" +
+                     "4. Ang text ay awtomatikong lalabas sa screen\n" +
+                     "5. Maaari mong i-customize ang font size, color, at style\n\n" +
                      "Tips:\n" +
                      "• Siguraduhing tahimik ang lugar\n" +
                      "• Mag-speak ng malinaw at dahan-dahan\n" +
-                     "• I-test muna ang recording bago i-save",
+                     "• Gumamit ng Filipino o English\n" +
+                     "• Kung may error, subukan ulit",
             onDismiss = { showTutorial = false }
+        )
+    }
+
+    // Error Dialog
+    if (showError && errorMessage.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissError() },
+            title = { Text("Speech Recognition Error") },
+            text = { Text(errorMessage) },
+            confirmButton = {
+                TextButton(
+                    onClick = { 
+                        viewModel.dismissError()
+                        // Try to reinitialize if it's a client error or recognizer busy
+                        if (errorMessage.contains("needs to be restarted") || 
+                            errorMessage.contains("Client error") ||
+                            errorMessage.contains("Speech recognizer is busy")) {
+                            // Always use force reset for these errors
+                            viewModel.forceResetSpeechRecognizer(context)
+                        }
+                    }
+                ) {
+                    Text(if (errorMessage.contains("needs to be restarted") || 
+                            errorMessage.contains("Client error") ||
+                            errorMessage.contains("Speech recognizer is busy")) "Try Again" else "OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissError() }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
@@ -148,10 +227,18 @@ fun RecordingScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.switchLanguage() }) {
+                        Icon(Icons.Default.Language, contentDescription = "Switch Language")
+                    }
+                },
                 modifier = Modifier
                     .padding(0.dp)
                     .background(color = MaterialTheme.colorScheme.surfaceVariant),
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         }
     ) { padding ->
         RecordingScreenContent(
@@ -160,6 +247,7 @@ fun RecordingScreen(
             fontSize = fontSize,
             fontColor = fontColor,
             fontFamily = fontFamily,
+            currentLanguage = currentLanguage,
             onStartListening = {
                 if (!hasAudioPermission) {
                     permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
@@ -225,6 +313,7 @@ private fun RecordingScreenContent(
     fontSize: TextUnit,
     fontColor: Color,
     fontFamily: FontFamily,
+    currentLanguage: String,
     onStartListening: () -> Unit,
     onStopListening: () -> Unit,
     onFontSizeChange: (TextUnit) -> Unit,
@@ -273,11 +362,17 @@ private fun RecordingScreenContent(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = if (isRecording) "Recording..." else "pindutin upang makapagsalita",
+                    text = if (isRecording) "Nakikinig..." else "Pindutin upang makapagsalita",
                     color = if (isRecording)
-                        MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Language: ${if (currentLanguage == "fil-PH") "Tagalog" else "English"}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
 
@@ -305,12 +400,20 @@ private fun RecordingScreenContent(
                 ) {
                     Text(
                         text = if (recognizedText.isEmpty()) {
-                            "Ang teksto na nabuo mula sa pagsasalita ay makikita dito..."
+                            if (isRecording) {
+                                "Nakikinig... magsalita na..."
+                            } else {
+                                "Ang teksto na nabuo mula sa pagsasalita ay makikita dito..."
+                            }
                         } else {
                             recognizedText
                         },
                         fontSize = fontSize,
-                        color = fontColor,
+                        color = if (recognizedText.isEmpty() && isRecording) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        } else {
+                            fontColor
+                        },
                         fontFamily = fontFamily,
                         modifier = Modifier.align(Alignment.TopStart)
                     )

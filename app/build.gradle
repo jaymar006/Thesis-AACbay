@@ -28,6 +28,11 @@ android {
         buildConfigField "String", "CLOUD_NAME", "\"${localProperties['CLOUD_NAME']}\""
         buildConfigField "String", "API_KEY", "\"${localProperties['API_KEY']}\""
         buildConfigField "String", "API_SECRET", "\"${localProperties['API_SECRET']}\""
+        
+        // Support for 16KB page sizes (for newer devices like Poco X7 Pro)
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+        }
     }
 
     buildTypes {
@@ -47,6 +52,15 @@ android {
         compose true
         viewBinding = true
         buildConfig true
+    }
+    
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
     }
 }
 
