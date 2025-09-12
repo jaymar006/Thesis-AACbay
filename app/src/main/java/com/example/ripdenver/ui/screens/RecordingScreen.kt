@@ -411,8 +411,15 @@ private fun RecordingScreenContent(
                         fontSize = fontSize,
                         color = if (recognizedText.isEmpty() && isRecording) {
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        } else if (recognizedText.isEmpty()) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         } else {
-                            fontColor
+                            // Use theme color if fontColor is black (default), otherwise use the selected color
+                            if (fontColor == Color.Black) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                fontColor
+                            }
                         },
                         fontFamily = fontFamily,
                         modifier = Modifier.align(Alignment.TopStart)
