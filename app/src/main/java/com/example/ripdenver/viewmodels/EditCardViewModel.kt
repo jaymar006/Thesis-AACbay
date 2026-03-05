@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.models.Card
+import com.example.ripdenver.repository.LocalDataRepository
 import com.example.ripdenver.state.EditCardState
 import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.utils.CloudinaryManager
@@ -30,8 +31,14 @@ import retrofit2.http.Path
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class EditCardViewModel : ViewModel() {
+@HiltViewModel
+class EditCardViewModel @Inject constructor(
+    private val localDataRepository: LocalDataRepository
+) : ViewModel() {
     private val _uiState = MutableStateFlow(EditCardState())
     val uiState: StateFlow<EditCardState> = _uiState.asStateFlow()
 
@@ -72,6 +79,21 @@ class EditCardViewModel : ViewModel() {
     fun loadCardData(cardId: String) {
         viewModelScope.launch {
             try {
+                // Prefer loading from local database first for offline support
+                val localCard = localDataRepository.getCardById(cardId)
+                if (localCard != null) {
+                    _uiState.value = EditCardState(
+                        cardId = localCard.id,
+                        cardLabel = localCard.label,
+                        cardVocalization = localCard.vocalization,
+                        cardColor = localCard.color,
+                        cardImagePath = Pair(localCard.cloudinaryUrl, localCard.cloudinaryPublicId),
+                        folderId = localCard.folderId
+                    )
+                    return@launch
+                }
+
+                // Fallback to Firebase if needed (e.g., before first sync)
                 val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
                 val cardSnapshot = Firebase.database.reference
                     .child("users")
@@ -81,8 +103,8 @@ class EditCardViewModel : ViewModel() {
                     .get()
                     .await()
 
-                val card = cardSnapshot.getValue(Card::class.java)
-                card?.let {
+                val remoteCard = cardSnapshot.getValue(Card::class.java)
+                remoteCard?.let {
                     _uiState.value = EditCardState(
                         cardId = it.id,
                         cardLabel = it.label,
@@ -149,7 +171,6 @@ class EditCardViewModel : ViewModel() {
     fun updateCard(context: Context, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
-                val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
                 val urlAndId = _selectedImageUrl.value?.let { url ->
                     CloudinaryManager.uploadImage(context, Uri.parse(url))
                 } ?: uiState.value.cardImagePath
@@ -168,13 +189,8 @@ class EditCardViewModel : ViewModel() {
                     )
                 }
 
-                Firebase.database.reference
-                    .child("users")
-                    .child(userId)
-                    .child("cards")
-                    .child(card.id)
-                    .setValue(card)
-                    .await()
+                // Write to local database first and mark for sync
+                localDataRepository.upsertUserCard(card)
 
                 _selectedImageUrl.value = null
                 onComplete()
@@ -186,17 +202,43 @@ class EditCardViewModel : ViewModel() {
 
     private suspend fun downloadImage(context: Context, imageUrl: String): File {
         return withContext(Dispatchers.IO) {
+            // Directory where we persist ARASAAC pictogram images for offline use
+            val cacheDir = File(context.filesDir, "arasaac_cache").apply {
+                if (!exists()) {
+                    mkdirs()
+                }
+            }
+
+            // Derive a stable file name from the URL so the same pictogram
+            // is reused across sessions and available while offline.
+            val fileName = Uri.parse(imageUrl).lastPathSegment ?: "pictogram_${UUID.randomUUID()}.png"
+            val cachedFile = File(cacheDir, fileName)
+
+            // If we've already downloaded this image before, return it directly
+            if (cachedFile.exists() && cachedFile.length() > 0) {
+                return@withContext cachedFile
+            }
+
+            // Otherwise download from the network and store it for future offline use
             val url = URL(imageUrl)
             val connection = url.openConnection() as HttpURLConnection
             connection.connect()
 
-            val file = File(context.cacheDir, "temp_image.jpg")
-            file.outputStream().use { output ->
-                connection.inputStream.use { input ->
-                    input.copyTo(output)
+            try {
+                cachedFile.outputStream().use { output ->
+                    connection.inputStream.use { input ->
+                        input.copyTo(output)
+                    }
                 }
+            } catch (e: Exception) {
+                // If something goes wrong while writing, make sure we don't keep a corrupt file
+                if (cachedFile.exists()) {
+                    cachedFile.delete()
+                }
+                throw e
             }
-            file
+
+            cachedFile
         }
     }
 

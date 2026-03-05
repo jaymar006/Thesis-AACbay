@@ -5,15 +5,12 @@ import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.ripdenver.repository.LocalDataRepository
 import com.example.ripdenver.models.ArasaacPictogram
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.state.AddModuleState
-import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.utils.CloudinaryManager
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ktx.database
-import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,8 +27,13 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
-class AddModuleViewModel : ViewModel() {
+@HiltViewModel
+class AddModuleViewModel @Inject constructor(
+    private val localDataRepository: LocalDataRepository
+) : ViewModel() {
     private val _uiState = MutableStateFlow(AddModuleState())
     val uiState: StateFlow<AddModuleState> = _uiState.asStateFlow()
 
@@ -169,7 +171,6 @@ class AddModuleViewModel : ViewModel() {
 
     fun saveFolder() = viewModelScope.launch {
         try {
-            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
             val folder = Folder(
                 id = UUID.randomUUID().toString(),
                 name = uiState.value.folderLabel,
@@ -177,14 +178,8 @@ class AddModuleViewModel : ViewModel() {
                 createdAt = System.currentTimeMillis()
             )
 
-            // Save to Firebase
-            Firebase.database.reference
-                .child("users")
-                .child(userId)
-                .child("folders")
-                .child(folder.id)
-                .setValue(folder)
-                .await()
+            // Write to local database first and mark for sync
+            localDataRepository.upsertUserFolder(folder)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -196,7 +191,6 @@ class AddModuleViewModel : ViewModel() {
 
     fun saveCard(context: Context, onComplete: () -> Unit) = viewModelScope.launch {
         try {
-            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
             // Handle image upload first
             val (imageUrl, publicId) = selectedImageUri.value?.let { uri ->
                 // Upload gallery image to Cloudinary
@@ -217,13 +211,8 @@ class AddModuleViewModel : ViewModel() {
                 )
             }
 
-            Firebase.database.reference
-                .child("users")
-                .child(userId)
-                .child("cards")
-                .child(card.id)
-                .setValue(card)
-                .await()
+            // Write to local database first and mark for sync
+            localDataRepository.upsertUserCard(card)
 
             onComplete()
         } catch (e: Exception) {
@@ -233,29 +222,49 @@ class AddModuleViewModel : ViewModel() {
 
 
     suspend fun saveImageToFirebase(card: Card) {
-        val userId = AuthenticationManager.getCurrentUserId() ?: return
-        val database = FirebaseDatabase.getInstance()
-        val ref = database.getReference("users")
-            .child(userId)
-            .child("cards")
-            .child(card.id)
-        ref.setValue(card)
+        // Kept for compatibility, but prefer saveCard() for new cards.
+        localDataRepository.upsertUserCard(card)
     }
 
     private suspend fun downloadImage(context: Context, imageUrl: String): File {
         return withContext(Dispatchers.IO) {
+            // Directory where we persist ARASAAC pictogram images for offline use
+            val cacheDir = File(context.filesDir, "arasaac_cache").apply {
+                if (!exists()) {
+                    mkdirs()
+                }
+            }
+
+            // Derive a stable file name from the URL so the same pictogram
+            // is reused across sessions and available while offline.
+            val fileName = Uri.parse(imageUrl).lastPathSegment ?: "pictogram_${UUID.randomUUID()}.png"
+            val cachedFile = File(cacheDir, fileName)
+
+            // If we've already downloaded this image before, return it directly
+            if (cachedFile.exists() && cachedFile.length() > 0) {
+                return@withContext cachedFile
+            }
+
+            // Otherwise download from the network and store it for future offline use
             val url = URL(imageUrl)
             val connection = url.openConnection() as HttpURLConnection
             connection.connect()
 
-            // Use context.cacheDir to resolve the cache directory
-            val file = File(context.cacheDir, "temp_image.jpg")
-            file.outputStream().use { output ->
-                connection.inputStream.use { input ->
-                    input.copyTo(output)
+            try {
+                cachedFile.outputStream().use { output ->
+                    connection.inputStream.use { input ->
+                        input.copyTo(output)
+                    }
                 }
+            } catch (e: Exception) {
+                // If something goes wrong while writing, make sure we don't keep a corrupt file
+                if (cachedFile.exists()) {
+                    cachedFile.delete()
+                }
+                throw e
             }
-            file
+
+            cachedFile
         }
     }
 

@@ -6,19 +6,28 @@ import androidx.lifecycle.viewModelScope
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
 import com.example.ripdenver.models.Ngram
+import com.example.ripdenver.repository.LocalDataRepository
+import com.example.ripdenver.services.DataSyncService
+import com.example.ripdenver.services.DefaultContentService
 import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.utils.CloudinaryManager
 import com.example.ripdenver.utils.DefaultContent
+import com.example.ripdenver.utils.ConnectivityObserver
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
+import javax.inject.Inject
 
 enum class SortType {
     FOLDER_FIRST,
@@ -30,7 +39,13 @@ enum class SortType {
     BY_USAGE
 }
 
-class MainViewModel : ViewModel() {
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val localDataRepository: LocalDataRepository,
+    private val dataSyncService: DataSyncService,
+    private val defaultContentService: DefaultContentService,
+    connectivityObserver: ConnectivityObserver
+) : ViewModel() {
     private val database = Firebase.database.reference
 
     // Data States
@@ -77,6 +92,7 @@ class MainViewModel : ViewModel() {
     val containerTextSize = _containerTextSize.asStateFlow()
 
     private var itemOrderPreference = MutableStateFlow(ItemOrder.UNSORTED)
+    private var lastConnectivityState: Boolean? = null
     private enum class ItemOrder {
         FOLDER_FIRST,
         CARD_FIRST,
@@ -85,55 +101,303 @@ class MainViewModel : ViewModel() {
 
     init {
         initializeUser()
+
+        // Observe connectivity changes and trigger sync when coming back online
+        viewModelScope.launch {
+            connectivityObserver.isConnected.collect { isConnected ->
+                val previous = lastConnectivityState
+                lastConnectivityState = isConnected
+
+                _isOffline.value = !isConnected
+
+                if (isConnected && previous == false) {
+                    onConnectivityRestored()
+                }
+            }
+        }
+
+        // Test database connectivity after a short delay
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(2000) // 2 second delay
+            testDatabaseConnectivity()
+        }
+
+        // Add a safety timeout to ensure loading state doesn't get stuck
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(15000) // 15 second safety timeout
+            if (_isLoading.value) {
+                Log.w("MainViewModel", "Loading timeout reached, forcing loading to false")
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun onConnectivityRestored() {
+        viewModelScope.launch {
+            try {
+                Log.d("MainViewModel", "Connectivity restored, attempting sync")
+
+                val currentUserId = AuthenticationManager.getCurrentUserId()
+                val userId = currentUserId ?: AuthenticationManager.signInAnonymously()
+
+                _isOffline.value = false
+                _isLoading.value = true
+
+                val syncResult = dataSyncService.syncAllUserData(userId)
+                Log.d("MainViewModel", "Auto sync after connectivity restored: $syncResult")
+
+                // Reload data from local database (now synced)
+                loadUserData(userId)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to sync after connectivity restored", e)
+                _isOffline.value = true
+                _isLoading.value = false
+            }
+        }
     }
 
     private fun initializeUser() {
         viewModelScope.launch {
             try {
                 val userId = AuthenticationManager.signInAnonymously()
+                _isOffline.value = false
+                
+                // First sync all user data from Firebase to local database
+                val syncResult = dataSyncService.syncAllUserData(userId)
+                Log.d("MainViewModel", "Sync result: $syncResult")
+                
+                // Then load data (will use local database)
                 loadUserData(userId)
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to initialize user", e)
+                Log.e("MainViewModel", "Failed to initialize user, falling back to offline mode", e)
                 _isOffline.value = true
+                // Load offline data without requiring authentication
+                loadOfflineDataWithoutAuth()
             }
         }
     }
 
     private fun loadUserData(userId: String) {
+        // Load from local database (which now has synced data from Firebase)
+        loadOfflineData()
+        
+        // Also set up Firebase listeners for real-time updates
+        setupFirebaseListeners(userId)
+    }
+    
+    private fun setupFirebaseListeners(userId: String) {
+        // Set up Firebase listeners for real-time updates
         loadCards(userId)
         loadFolders(userId)
         observeGridSettings(userId)
-        _isLoading.value = false
+    }
+
+    private fun loadOfflineData() {
+        viewModelScope.launch {
+            try {
+                Log.d("MainViewModel", "Loading offline data from local database")
+                
+                // Load cards from local database
+                val cardList = localDataRepository.getAllCards().first()
+                _cards.value = cardList
+                Log.d("MainViewModel", "Loaded ${cardList.size} cards from local database")
+                
+                // Load folders from local database
+                val folderList = localDataRepository.getAllFolders().first()
+                _folders.value = folderList
+                Log.d("MainViewModel", "Loaded ${folderList.size} folders from local database")
+                
+                // Update sorted items after loading both cards and folders
+                updateSortedItems()
+                
+                Log.d("MainViewModel", "After updateSortedItems - _cards.value.size: ${_cards.value.size}, _folders.value.size: ${_folders.value.size}, _sortedItems.value.size: ${_sortedItems.value.size}")
+                
+                // Load settings from local database (if available)
+                val userId = AuthenticationManager.getCurrentUserId()
+                if (userId != null) {
+                    try {
+                        val settings = localDataRepository.getSettingsByUserFlow(userId).first()
+                        settings?.let {
+                            _columnCount.value = it.columnCount
+                            _showPredictions.value = it.showPredictions
+                            _boardImageSize.value = it.boardImageSize
+                            _containerImageSize.value = it.containerImageSize
+                            _boardTextSize.value = it.boardTextSize
+                            _containerTextSize.value = it.containerTextSize
+                            Log.d("MainViewModel", "Loaded settings from local database")
+                        }
+                    } catch (e: Exception) {
+                        Log.d("MainViewModel", "No settings found in local database, using defaults")
+                    }
+                }
+                
+                _isLoading.value = false
+                Log.d("MainViewModel", "Offline data loaded successfully")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error loading offline data", e)
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun loadOfflineDataWithoutAuth() {
+        viewModelScope.launch {
+            try {
+                Log.d("MainViewModel", "Loading offline data from local database (no auth)")
+                
+                // Add a small delay to ensure database initialization is complete
+                kotlinx.coroutines.delay(1000)
+                
+                // Add a timeout to prevent infinite loading
+                kotlinx.coroutines.withTimeout(10000) { // 10 second timeout
+                    // Load cards and folders from local database
+                    var cardList = localDataRepository.getAllCards().first()
+                    var folderList = localDataRepository.getAllFolders().first()
+
+                    Log.d("MainViewModel", "Initial offline load (no auth) - cards: ${cardList.size}, folders: ${folderList.size}")
+
+                    // If nothing is in the local database, populate default content once
+                    if (cardList.isEmpty() && folderList.isEmpty()) {
+                        Log.d("MainViewModel", "No local content found, populating default content")
+                        defaultContentService.populateDefaultContent()
+
+                        // Re-read after seeding
+                        cardList = localDataRepository.getAllCards().first()
+                        folderList = localDataRepository.getAllFolders().first()
+                        Log.d("MainViewModel", "After seeding default content - cards: ${cardList.size}, folders: ${folderList.size}")
+                    }
+
+                    _cards.value = cardList
+                    _folders.value = folderList
+                    Log.d("MainViewModel", "Loaded ${cardList.size} cards and ${folderList.size} folders from local database (no auth)")
+                    
+                    // Update sorted items after loading both cards and folders
+                    updateSortedItems()
+                    
+                    Log.d("MainViewModel", "After updateSortedItems (no auth) - _cards.value.size: ${_cards.value.size}, _folders.value.size: ${_folders.value.size}, _sortedItems.value.size: ${_sortedItems.value.size}")
+                    
+                    // Use default settings when offline without auth
+                    Log.d("MainViewModel", "Using default settings for offline mode")
+                }
+                
+                _isLoading.value = false
+                Log.d("MainViewModel", "Offline data loaded successfully (no auth)")
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Log.e("MainViewModel", "Timeout loading offline data, using empty data", e)
+                _cards.value = emptyList()
+                _folders.value = emptyList()
+                updateSortedItems()
+                _isLoading.value = false
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error loading offline data without auth", e)
+                _cards.value = emptyList()
+                _folders.value = emptyList()
+                updateSortedItems()
+                _isLoading.value = false
+            }
+        }
     }
 
     private fun loadCards(userId: String) {
+        var isFirstLoad = true
         database.child("users").child(userId).child("cards")
             .orderByChild("order")
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    _cards.value = snapshot.children.mapNotNull { it.getValue(Card::class.java) }
+                    val cards = snapshot.children.mapNotNull { it.getValue(Card::class.java) }
+                    _cards.value = cards
+                    
+                    // Sync to local database
+                    viewModelScope.launch {
+                        try {
+                            cards.forEach { card ->
+                                localDataRepository.insertCard(card, isDefault = false)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainViewModel", "Error syncing cards to local database", e)
+                        }
+                    }
+                    
                     updateSortedItems()
+                    
+                    // Set loading to false after first load
+                    if (isFirstLoad) {
+                        _isLoading.value = false
+                        isFirstLoad = false
+                        Log.d("MainViewModel", "Loaded ${cards.size} cards from Firebase")
+                    }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e("MainViewModel", "Failed to load cards", error.toException())
+                    Log.e("MainViewModel", "Failed to load cards from Firebase, falling back to local", error.toException())
+                    // Fallback to local database
+                    loadOfflineCards()
                 }
             })
     }
 
+    private fun loadOfflineCards() {
+        viewModelScope.launch {
+            try {
+                val cardList = localDataRepository.getAllCards().first()
+                _cards.value = cardList
+                updateSortedItems()
+                Log.d("MainViewModel", "Loaded ${cardList.size} cards from offline database")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error loading offline cards", e)
+            }
+        }
+    }
+
     private fun loadFolders(userId: String) {
+        var isFirstLoad = true
         database.child("users").child(userId).child("folders")
             .orderByChild("order")
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    _folders.value = snapshot.children.mapNotNull { it.getValue(Folder::class.java) }
+                    val folders = snapshot.children.mapNotNull { it.getValue(Folder::class.java) }
+                    _folders.value = folders
+                    
+                    // Sync to local database
+                    viewModelScope.launch {
+                        try {
+                            folders.forEach { folder ->
+                                localDataRepository.insertFolder(folder, isDefault = false)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainViewModel", "Error syncing folders to local database", e)
+                        }
+                    }
+                    
                     updateSortedItems()
+                    
+                    // Set loading to false after first load
+                    if (isFirstLoad) {
+                        _isLoading.value = false
+                        isFirstLoad = false
+                        Log.d("MainViewModel", "Loaded ${folders.size} folders from Firebase")
+                    }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    Log.e("MainViewModel", "Failed to load folders", error.toException())
+                    Log.e("MainViewModel", "Failed to load folders from Firebase, falling back to local", error.toException())
+                    // Fallback to local database
+                    loadOfflineFolders()
                 }
             })
+    }
+
+    private fun loadOfflineFolders() {
+        viewModelScope.launch {
+            try {
+                val folderList = localDataRepository.getAllFolders().first()
+                _folders.value = folderList
+                updateSortedItems()
+                Log.d("MainViewModel", "Loaded ${folderList.size} folders from offline database")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error loading offline folders", e)
+            }
+        }
     }
 
     private fun observeGridSettings(userId: String) {
@@ -177,52 +441,51 @@ class MainViewModel : ViewModel() {
     // Predict the next card
     fun predictNextCards(selectedCards: List<Card>) {
         viewModelScope.launch {
-            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
+            val userId = AuthenticationManager.getCurrentUserId() ?: "local_offline_user"
             if (selectedCards.isEmpty()) {
                 _predictedCards.value = emptyList()
                 return@launch
             }
 
             val lastCardId = selectedCards.last().id
-            database.child("users").child(userId).child("ngrams")
-                .orderByChild("sequenceHash")
-                .startAt("${lastCardId}_")
-                .endAt("${lastCardId}_\uf8ff")
-                .get()
-                .addOnSuccessListener { snapshot ->
-                    // Calculate total frequency and card frequencies
-                    var totalFrequency = 0
-                    val cardFrequencies = mutableMapOf<String, Int>()
 
-                    snapshot.children.forEach { ngramSnapshot ->
-                        val ngram = ngramSnapshot.getValue(Ngram::class.java)
-                        ngram?.let {
-                            val nextCardId = it.sequence.getOrNull(1)
-                            if (nextCardId != null) {
-                                val frequency = it.frequency
-                                totalFrequency += frequency
-                                cardFrequencies[nextCardId] = (cardFrequencies[nextCardId] ?: 0) + frequency
-                            }
-                        }
+            try {
+                // Load ngrams for this user from local database
+                val ngrams = localDataRepository.getNgramsByUser(userId).first()
+
+                // Calculate total frequency and card frequencies where the sequence starts with lastCardId
+                var totalFrequency = 0
+                val cardFrequencies = mutableMapOf<String, Int>()
+
+                ngrams.forEach { ngram ->
+                    val firstCardId = ngram.sequence.firstOrNull()
+                    val nextCardId = ngram.sequence.getOrNull(1)
+                    if (firstCardId == lastCardId && nextCardId != null) {
+                        val frequency = ngram.frequency
+                        totalFrequency += frequency
+                        cardFrequencies[nextCardId] = (cardFrequencies[nextCardId] ?: 0) + frequency
                     }
-
-                    // Convert frequencies to probabilities and create predictions
-                    val predictions = cardFrequencies.mapNotNull { (cardId, frequency) ->
-                        val card = cards.value.find { it.id == cardId }
-                        if (card != null && totalFrequency > 0) {
-                            card to (frequency.toFloat() / totalFrequency)
-                        } else null
-                    }.sortedByDescending { it.second }
-
-                    _predictedCards.value = predictions
                 }
+
+                // Convert frequencies to probabilities and create predictions
+                val predictions = cardFrequencies.mapNotNull { (cardId, frequency) ->
+                    val card = cards.value.find { it.id == cardId }
+                    if (card != null && totalFrequency > 0) {
+                        card to (frequency.toFloat() / totalFrequency)
+                    } else null
+                }.sortedByDescending { it.second }
+
+                _predictedCards.value = predictions
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error predicting next cards from local ngrams", e)
+                _predictedCards.value = emptyList()
+            }
         }
     }
 
-    // Add this new function to save ngrams
     fun saveNgram(selectedCards: List<Card>) {
         viewModelScope.launch {
-            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
+            val userId = AuthenticationManager.getCurrentUserId() ?: "local_offline_user"
             if (selectedCards.size < 2) {
                 Log.d("MainViewModel", "Not enough cards for ngram (${selectedCards.size} cards)")
                 return@launch
@@ -234,28 +497,14 @@ class MainViewModel : ViewModel() {
                 val sequenceHash = sequence.joinToString("_")
                 Log.d("MainViewModel", "Saving ngram with sequence: $sequenceHash")
 
-                // Check if this ngram already exists
-                val ngramSnapshot = database.child("users").child(userId).child("ngrams")
-                    .orderByChild("sequenceHash")
-                    .equalTo(sequenceHash)
-                    .get()
-                    .await()
+                // Check if this ngram already exists locally
+                val existing = localDataRepository.getNgramBySequence(userId, sequenceHash)
 
-                if (ngramSnapshot.exists()) {
-                    // Update existing ngram
-                    ngramSnapshot.children.firstOrNull()?.let { existingNgram ->
-                        val ngram = existingNgram.getValue(Ngram::class.java)
-                        ngram?.let {
-                            val updatedNgram = it.increment()
-                            Log.d("MainViewModel", "Updating existing ngram: ${existingNgram.key}")
-                            database.child("users").child(userId).child("ngrams")
-                                .child(existingNgram.key!!)
-                                .setValue(updatedNgram)
-                                .await()
-                        }
-                    }
+                if (existing != null) {
+                    val updated = existing.increment()
+                    Log.d("MainViewModel", "Updating existing local ngram for sequence: $sequenceHash")
+                    localDataRepository.updateNgram(updated)
                 } else {
-                    // Create new ngram
                     val ngram = Ngram(
                         userId = userId,
                         sequence = sequence,
@@ -263,37 +512,66 @@ class MainViewModel : ViewModel() {
                         lastUsed = System.currentTimeMillis(),
                         sequenceHash = sequenceHash
                     )
-                    Log.d("MainViewModel", "Creating new ngram with sequence: $sequenceHash")
-                    database.child("users").child(userId).child("ngrams")
-                        .push()
-                        .setValue(ngram)
-                        .await()
+                    Log.d("MainViewModel", "Creating new local ngram with sequence: $sequenceHash")
+                    localDataRepository.insertNgram(ngram)
                 }
-                Log.d("MainViewModel", "Successfully saved ngram")
+
+                Log.d("MainViewModel", "Successfully saved ngram locally")
             } catch (e: Exception) {
-                Log.e("MainViewModel", "Error saving ngram", e)
+                Log.e("MainViewModel", "Error saving ngram locally", e)
             }
         }
     }
 
-    // Check if online :>
-    fun checkConnectivity() {
-        viewModelScope.launch {
-            try {
-                Firebase.database.reference.child(".info/connected")
-                    .addValueEventListener(object : ValueEventListener {
-                        override fun onDataChange(snapshot: DataSnapshot) {
-                            val connected = snapshot.getValue(Boolean::class.java) ?: false
-                            _isOffline.value = !connected
-                        }
+    // Method to manually switch to offline mode if needed
+    fun switchToOfflineMode() {
+        _isOffline.value = true
+        loadOfflineData()
+    }
 
-                        override fun onCancelled(error: DatabaseError) {
-                            _isOffline.value = true
-                        }
-                    })
-            } catch (e: Exception) {
-                _isOffline.value = true
-            }
+    // Method to manually sync user data from Firebase to local database
+    fun syncUserData() = viewModelScope.launch {
+        try {
+            val userId = AuthenticationManager.getCurrentUserId() ?: return@launch
+            _isLoading.value = true
+            
+            val syncResult = dataSyncService.syncAllUserData(userId)
+            Log.d("MainViewModel", "Manual sync completed: $syncResult")
+            
+            // Reload data from local database
+            loadOfflineData()
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Error during manual sync", e)
+            _isLoading.value = false
+        }
+    }
+
+    // Method to force stop loading (for debugging)
+    fun forceStopLoading() {
+        Log.w("MainViewModel", "Force stopping loading state")
+        _isLoading.value = false
+    }
+
+    // Method to manually populate default content (for debugging)
+    fun populateDefaultContent() = viewModelScope.launch {
+        try {
+            Log.d("MainViewModel", "Manually populating default content")
+            // This would need to be injected, but for now let's just reload data
+            loadOfflineDataWithoutAuth()
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Error manually populating default content", e)
+        }
+    }
+
+    // Method to test database connectivity (for debugging)
+    fun testDatabaseConnectivity() = viewModelScope.launch {
+        try {
+            Log.d("MainViewModel", "Testing database connectivity")
+            val cardCount = localDataRepository.getAllCards().first().size
+            val folderCount = localDataRepository.getAllFolders().first().size
+            Log.d("MainViewModel", "Database test - Cards: $cardCount, Folders: $folderCount")
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Database connectivity test failed", e)
         }
     }
 
@@ -344,6 +622,8 @@ class MainViewModel : ViewModel() {
         allItems.addAll(_folders.value)
         allItems.addAll(_cards.value.filter { it.folderId.isEmpty() })
 
+        Log.d("MainViewModel", "updateSortedItems - folders: ${_folders.value.size}, cards: ${_cards.value.size}, unassigned cards: ${_cards.value.filter { it.folderId.isEmpty() }.size}")
+
         // Apply current sorting if any
         when (itemOrderPreference.value) {
             ItemOrder.FOLDER_FIRST -> allItems.sortBy { it !is Folder }
@@ -352,6 +632,7 @@ class MainViewModel : ViewModel() {
         }
 
         _sortedItems.value = allItems
+        Log.d("MainViewModel", "updateSortedItems - final sortedItems: ${allItems.size}")
     }
 
     fun sortItems(sortType: SortType) = viewModelScope.launch {
@@ -445,20 +726,22 @@ class MainViewModel : ViewModel() {
             )
         }
 
-        // Update Firebase order
+        // Update local order and mark items for sync
         sortedItems.forEachIndexed { index, item ->
             when (item) {
                 is Folder -> {
-                    database.child("users").child(AuthenticationManager.getCurrentUserId() ?: "").child("folders")
-                        .child(item.id)
-                        .child("order")
-                        .setValue(index)
+                    try {
+                        localDataRepository.updateFolderOrder(item.id, index)
+                    } catch (e: Exception) {
+                        Log.e("MainViewModel", "Failed to update folder order locally", e)
+                    }
                 }
                 is Card -> {
-                    database.child("users").child(AuthenticationManager.getCurrentUserId() ?: "").child("cards")
-                        .child(item.id)
-                        .child("order")
-                        .setValue(index)
+                    try {
+                        localDataRepository.updateCardOrder(item.id, index)
+                    } catch (e: Exception) {
+                        Log.e("MainViewModel", "Failed to update card order locally", e)
+                    }
                 }
             }
         }
@@ -496,7 +779,6 @@ class MainViewModel : ViewModel() {
     }
 
     private suspend fun deleteCard(card: Card) {
-        val userId = AuthenticationManager.getCurrentUserId() ?: return
         try {
             // Check if this is a default card by comparing its properties with DefaultContent
             val isDefaultCard = DefaultContent.defaultCards.any { defaultCard ->
@@ -513,7 +795,11 @@ class MainViewModel : ViewModel() {
                 Log.d("CardDeletion", "Cloudinary deletion result: $deleteResult")
             }
 
-            database.child("users").child(userId).child("cards").child(card.id).removeValue().await()
+            // Soft-delete locally and mark for sync
+            localDataRepository.softDeleteCard(card.id)
+
+            // Update in-memory state so UI reflects the change immediately
+            _cards.value = _cards.value.filterNot { it.id == card.id }
         } catch (e: Exception) {
             Log.e("CardDeletion", "Error deleting card", e)
             throw e
@@ -521,20 +807,18 @@ class MainViewModel : ViewModel() {
     }
 
     private suspend fun deleteFolder(folder: Folder) {
-        val userId = AuthenticationManager.getCurrentUserId() ?: return
         try {
-            val snapshot = database.child("users").child(userId).child("cards")
-                .orderByChild("folderId")
-                .equalTo(folder.id)
-                .get()
-                .await()
-
-            snapshot.children.forEach { cardSnapshot ->
-                val card = cardSnapshot.getValue(Card::class.java)
-                card?.let { deleteCard(it) }
+            // Delete all cards in this folder (soft-delete, with Cloudinary cleanup)
+            val cardsInFolder = _cards.value.filter { it.folderId == folder.id }
+            cardsInFolder.forEach { card ->
+                deleteCard(card)
             }
 
-            database.child("users").child(userId).child("folders").child(folder.id).removeValue().await()
+            // Soft-delete the folder locally and mark for sync
+            localDataRepository.softDeleteFolder(folder.id)
+
+            // Update in-memory state so UI reflects the change immediately
+            _folders.value = _folders.value.filterNot { it.id == folder.id }
         } catch (e: Exception) {
             Log.e("MainViewModel", "Error deleting folder", e)
         }

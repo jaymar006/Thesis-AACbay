@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,11 +33,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.ripdenver.AACbayApplication
 import com.example.ripdenver.models.Card
 import com.example.ripdenver.models.Folder
+import com.example.ripdenver.utils.AuthenticationManager
 import com.example.ripdenver.viewmodels.MainViewModel
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,18 +83,28 @@ fun FolderScreen(
             )
         },
         floatingActionButton = {
-            if (isEditMode) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    // Cancel FAB
-                    FloatingActionButton(
-                        onClick = { onToggleEditMode(false) },
-                        containerColor = MaterialTheme.colorScheme.error
+            when {
+                isEditMode -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        Icon(Icons.Default.Close, "Cancel Edit")
+                        // Cancel FAB
+                        FloatingActionButton(
+                            onClick = { onToggleEditMode(false) },
+                            containerColor = MaterialTheme.colorScheme.error
+                        ) {
+                            Icon(Icons.Default.Close, "Cancel Edit")
+                        }
                     }
+                }
+
+                !isDeleteMode -> {
+                    FolderControlButtons(
+                        selectedCards = selectedItems,
+                        mainViewModel = mainViewModel,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
         }
@@ -217,5 +233,74 @@ fun FolderScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun FolderControlButtons(
+    selectedCards: List<Card>,
+    mainViewModel: MainViewModel,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val tts = remember {
+        (context.applicationContext as AACbayApplication).ttsManager
+    }
+    val database = Firebase.database.reference
+
+    FloatingActionButton(
+        onClick = {
+            // Update usage for all selected cards
+            selectedCards.forEach { card ->
+                val cardRef = database.child("users")
+                    .child(AuthenticationManager.getCurrentUserId() ?: "")
+                    .child("cards")
+                    .child(card.id)
+
+                // First get the current value from database
+                cardRef.get().addOnSuccessListener { snapshot ->
+                    val currentUsageCount = snapshot.child("usageCount").getValue(Int::class.java) ?: 0
+
+                    cardRef.updateChildren(
+                        mapOf(
+                            "usageCount" to (currentUsageCount + 1),
+                            "lastUsed" to System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+
+            // Save ngram using ViewModel
+            if (selectedCards.size >= 2) {
+                Log.d("FolderControlButtons", "Attempting to save ngrams with ${selectedCards.size} cards")
+                Log.d("FolderControlButtons", "Card IDs: ${selectedCards.map { it.id }}")
+
+                // Save all possible sequences of 2 or more cards
+                for (i in 0 until selectedCards.size - 1) {
+                    for (j in i + 1 until selectedCards.size) {
+                        val sequence = selectedCards.subList(i, j + 1)
+                        Log.d("FolderControlButtons", "Saving sequence: ${sequence.map { it.id }}")
+                        mainViewModel.saveNgram(sequence)
+                    }
+                }
+            } else {
+                Log.d("FolderControlButtons", "Not enough cards for ngram (${selectedCards.size} cards)")
+            }
+
+            // Speak text (existing TTS logic)
+            selectedCards.firstOrNull()?.let { firstCard ->
+                val firstText = firstCard.vocalization.ifEmpty { firstCard.label }
+                tts.speak(firstText)
+            }
+            selectedCards.drop(1).forEach { card ->
+                val textToSpeak = card.vocalization.ifEmpty { card.label }
+                tts.speakQueued(textToSpeak)
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+        contentColor = MaterialTheme.colorScheme.onSecondary,
+        modifier = modifier
+    ) {
+        Icon(Icons.Default.VolumeUp, contentDescription = "Speak selection")
     }
 }

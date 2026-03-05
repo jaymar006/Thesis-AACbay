@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -119,18 +120,19 @@ fun MainScreen(
     val showPredictions = mainViewModel.showPredictions.collectAsState().value
     val isLoading = mainViewModel.isLoading.collectAsState().value
 
-    LaunchedEffect(Unit) {
-        mainViewModel.checkConnectivity()
-    }
-
-    LaunchedEffect(sortedItems.value, folders, unassignedCards) {
+    // Update items whenever sortedItems, cards, or folders change
+    LaunchedEffect(sortedItems.value, cards, folders) {
+        Log.d("MainScreen", "LaunchedEffect triggered - sortedItems: ${sortedItems.value.size}, cards: ${cards.size}, folders: ${folders.size}")
+        
         if (sortedItems.value.isNotEmpty()) {
             items.clear()
             items.addAll(sortedItems.value)
+            Log.d("MainScreen", "Using sortedItems: ${items.size} items")
         } else {
             items.clear()
             items.addAll(folders)
             items.addAll(unassignedCards)
+            Log.d("MainScreen", "Using fallback items: ${items.size} items (${folders.size} folders + ${unassignedCards.size} cards)")
         }
     }
 
@@ -166,10 +168,11 @@ fun MainScreen(
 
     Scaffold(
         floatingActionButton = {
-            if (!isDeleteMode && !isEditMode && !isOffline && !isLoading) {
+            if (!isDeleteMode && !isEditMode && !isLoading) {
                 ControlButtons(
                     navController = navController,
-                    onMicClick = onMicClick,
+                    selectedCards = selectedCards,
+                    mainViewModel = mainViewModel,
                     modifier = Modifier
                 )
             } else if (isDeleteMode) {
@@ -290,46 +293,8 @@ fun MainScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Nilalagay ang mga kards at folders ...",
+                        text = if (isOffline) "Nilalagay ang mga kards at folders (offline)..." else "Nilalagay ang mga kards at folders ...",
                         style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            } else if (isOffline) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    val rotation = remember { Animatable(0f) }
-
-                    LaunchedEffect(Unit) {
-                        while (true) {
-                            rotation.animateTo(
-                                targetValue = rotation.value + 360f,
-                                animationSpec = tween(
-                                    durationMillis = 1000,
-                                    easing = LinearEasing
-                                )
-                            )
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Loading",
-                        modifier = Modifier
-                            .size(48.dp)
-                            .graphicsLayer {
-                                rotationZ = rotation.value
-                            },
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Reconnecting...",
-                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -503,52 +468,7 @@ fun SelectionContainer(
             .fillMaxWidth()
             .height(80.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 5.dp)
-            .clickable {
-                // Update usage for all selected cards
-                selectedItems.forEach { card ->
-                    val cardRef = database.child("users").child(AuthenticationManager.getCurrentUserId() ?: "").child("cards").child(card.id)
-
-                    // First get the current value from database
-                    cardRef.get().addOnSuccessListener { snapshot ->
-                        val currentUsageCount = snapshot.child("usageCount").getValue(Int::class.java) ?: 0
-
-                        cardRef.updateChildren(
-                            mapOf(
-                                "usageCount" to (currentUsageCount + 1),
-                                "lastUsed" to System.currentTimeMillis()
-                            )
-                        )
-                    }
-                }
-
-                // Save ngram using ViewModel
-                if (selectedItems.size >= 2) {
-                    Log.d("SelectionContainer", "Attempting to save ngrams with ${selectedItems.size} cards")
-                    Log.d("SelectionContainer", "Card IDs: ${selectedItems.map { it.id }}")
-                    
-                    // Save all possible sequences of 2 or more cards
-                    for (i in 0 until selectedItems.size - 1) {
-                        for (j in i + 1 until selectedItems.size) {
-                            val sequence = selectedItems.subList(i, j + 1)
-                            Log.d("SelectionContainer", "Saving sequence: ${sequence.map { it.id }}")
-                            mainViewModel.saveNgram(sequence)
-                        }
-                    }
-                } else {
-                    Log.d("SelectionContainer", "Not enough cards for ngram (${selectedItems.size} cards)")
-                }
-
-                // Speak text (existing TTS logic)
-                selectedItems.firstOrNull()?.let { firstCard ->
-                    val firstText = firstCard.vocalization.ifEmpty { firstCard.label }
-                    tts.speak(firstText)
-                }
-                selectedItems.drop(1).forEach { card ->
-                    val textToSpeak = card.vocalization.ifEmpty { card.label }
-                    tts.speakQueued(textToSpeak)
-                }
-            },
+            .padding(horizontal = 5.dp),
         verticalAlignment = Alignment.CenterVertically
     )  {
         // Scrollable selected items
@@ -641,15 +561,82 @@ fun SelectionContainer(
 @Composable
 private fun ControlButtons(
     navController: NavController,
-    onMicClick: () -> Unit,
+    selectedCards: List<Card>,
+    mainViewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
-    FloatingActionButton(
-        onClick = { navController.navigate("recording") },
-        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-        contentColor = MaterialTheme.colorScheme.onPrimary
+    val context = LocalContext.current
+    val tts = remember {
+        (context.applicationContext as AACbayApplication).ttsManager
+    }
+    val database = Firebase.database.reference
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
     ) {
-        Icon(Icons.Default.Mic, contentDescription = "Voice input")
+        FloatingActionButton(
+            onClick = { navController.navigate("recording") },
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        ) {
+            Icon(Icons.Default.Mic, contentDescription = "Voice input")
+        }
+
+        FloatingActionButton(
+            onClick = {
+                // Update usage for all selected cards
+                selectedCards.forEach { card ->
+                    val cardRef = database.child("users")
+                        .child(AuthenticationManager.getCurrentUserId() ?: "")
+                        .child("cards")
+                        .child(card.id)
+
+                    // First get the current value from database
+                    cardRef.get().addOnSuccessListener { snapshot ->
+                        val currentUsageCount = snapshot.child("usageCount").getValue(Int::class.java) ?: 0
+
+                        cardRef.updateChildren(
+                            mapOf(
+                                "usageCount" to (currentUsageCount + 1),
+                                "lastUsed" to System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+
+                // Save ngram using ViewModel
+                if (selectedCards.size >= 2) {
+                    Log.d("ControlButtons", "Attempting to save ngrams with ${selectedCards.size} cards")
+                    Log.d("ControlButtons", "Card IDs: ${selectedCards.map { it.id }}")
+
+                    // Save all possible sequences of 2 or more cards
+                    for (i in 0 until selectedCards.size - 1) {
+                        for (j in i + 1 until selectedCards.size) {
+                            val sequence = selectedCards.subList(i, j + 1)
+                            Log.d("ControlButtons", "Saving sequence: ${sequence.map { it.id }}")
+                            mainViewModel.saveNgram(sequence)
+                        }
+                    }
+                } else {
+                    Log.d("ControlButtons", "Not enough cards for ngram (${selectedCards.size} cards)")
+                }
+
+                // Speak text (existing TTS logic)
+                selectedCards.firstOrNull()?.let { firstCard ->
+                    val firstText = firstCard.vocalization.ifEmpty { firstCard.label }
+                    tts.speak(firstText)
+                }
+                selectedCards.drop(1).forEach { card ->
+                    val textToSpeak = card.vocalization.ifEmpty { card.label }
+                    tts.speakQueued(textToSpeak)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+            contentColor = MaterialTheme.colorScheme.onSecondary
+        ) {
+            Icon(Icons.Default.PlayArrow, contentDescription = "Play selection")
+        }
     }
 }
 
@@ -866,37 +853,5 @@ fun PredictiveContainer(
     }
 }
 
-@Composable
-fun RetryButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Walang koneksyon sa internet",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.error
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = onClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = "Retry",
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Subukang muli")
-        }
-    }
-}
 
 
